@@ -83,7 +83,11 @@ public class MinimapView extends FlexComponent {
         }
 
         try {
-            this.preprocessImage = ReflectionUtil.getMethod(TextureLoader.class, "preprocessImage", new Class[]{BufferedImage.class, Boolean.TYPE});
+            this.preprocessImage = ReflectionUtil.getMethod(
+                    TextureLoader.class,
+                    "preprocessImage",
+                    new Class[]{BufferedImage.class, Boolean.TYPE}
+            );
         } catch (NoSuchMethodException var4) {
             throw new RuntimeException(var4);
         }
@@ -100,7 +104,65 @@ public class MinimapView extends FlexComponent {
         if (tileType.isTree() || tileType.isBush())
             return tileImages.getOrDefault(Tiles.Tile.TILE_GRASS, missingImage);
 
-        return tileImages.getOrDefault(tileType, missingImage);
+        BufferedImage tileImage = tileImages.getOrDefault(tileType, missingImage);
+        if (tileType.isRoad()) {
+            int roaddir = nearTerrainBuffer.getData(x, y) & 7;
+            Tiles.TileRoadDirection roadDirection = Tiles.TileRoadDirection.DIR_STRAIGHT;
+            if (roaddir == 1) {
+                roadDirection = Tiles.TileRoadDirection.DIR_NW;
+            } else if (roaddir == 2) {
+                roadDirection = Tiles.TileRoadDirection.DIR_NE;
+            } else if (roaddir == 3) {
+                roadDirection = Tiles.TileRoadDirection.DIR_SE;
+            } else if (roaddir == 4) {
+                roadDirection = Tiles.TileRoadDirection.DIR_SW;
+            }
+
+            if (roadDirection != Tiles.TileRoadDirection.DIR_STRAIGHT) {
+                BufferedImage newImage = new BufferedImage(32, 32, BufferedImage.TYPE_INT_RGB);
+                Graphics2D gfx = newImage.createGraphics();
+                gfx.drawImage(tileImage, null, 0, 0);
+                gfx.dispose();
+
+                tileImage = newImage;
+
+                BufferedImage northTileImage = null;
+                BufferedImage eastTileImage = null;
+                BufferedImage southTileImage = null;
+                BufferedImage westTileImage = null;
+                if (roadDirection == Tiles.TileRoadDirection.DIR_SE || roadDirection == Tiles.TileRoadDirection.DIR_SW) {
+                    northTileImage = tileImages.getOrDefault(nearTerrainBuffer.getSecondaryType(x, y - 1), missingImage);
+                }
+                if (roadDirection == Tiles.TileRoadDirection.DIR_NW || roadDirection == Tiles.TileRoadDirection.DIR_SW) {
+                    eastTileImage = tileImages.getOrDefault(nearTerrainBuffer.getSecondaryType(x + 1, y), missingImage);
+                }
+                if (roadDirection == Tiles.TileRoadDirection.DIR_NE || roadDirection == Tiles.TileRoadDirection.DIR_NW) {
+                    southTileImage = tileImages.getOrDefault(nearTerrainBuffer.getSecondaryType(x, y + 1), missingImage);
+                }
+                if (roadDirection == Tiles.TileRoadDirection.DIR_SE || roadDirection == Tiles.TileRoadDirection.DIR_NE) {
+                    westTileImage = tileImages.getOrDefault(nearTerrainBuffer.getSecondaryType(x - 1, y), missingImage);
+                }
+
+                for (int py = 0; py < 32; py++) {
+                    for (int px = 0; px < 32; px++) {
+                        if ((roadDirection == Tiles.TileRoadDirection.DIR_SE || roadDirection == Tiles.TileRoadDirection.DIR_SW) && py <= 15 && px - py >= 0 && px + py <= 31) {
+                            tileImage.setRGB(px, py, northTileImage.getRGB(px, py));
+                        }
+                        if ((roadDirection == Tiles.TileRoadDirection.DIR_NW || roadDirection == Tiles.TileRoadDirection.DIR_SW) && px >= 16 && py - (31 - px) >= 0 && py + (31 - px) <= 31) {
+                            tileImage.setRGB(px, py, eastTileImage.getRGB(px, py));
+                        }
+                        if ((roadDirection == Tiles.TileRoadDirection.DIR_NE || roadDirection == Tiles.TileRoadDirection.DIR_NW) && py >= 16 && px - (31 - py) >= 0 && px + (31 - py) <= 31) {
+                            tileImage.setRGB(px, py, southTileImage.getRGB(px, py));
+                        }
+                        if ((roadDirection == Tiles.TileRoadDirection.DIR_NE || roadDirection == Tiles.TileRoadDirection.DIR_SE) && px <= 15 && py - px >= 0 && py + px <= 31) {
+                            tileImage.setRGB(px, py, westTileImage.getRGB(px, py));
+                        }
+                    }
+                }
+            }
+        }
+
+        return tileImage;
     }
 
     protected void renderComponent(Queue queue, float alpha) {
@@ -115,8 +177,8 @@ public class MinimapView extends FlexComponent {
         float yOffset = 1f - ((pos.getY() / 4.0f) - tileY);
 
         // TODO: move these somewhere configurable
-        int tileSize = 16;
-        boolean isNorthFacing = false;
+        int tileSize = 32;
+        boolean isNorthFacing = true;
         // 362 is the result of Math.sqrt(256^2 + 256^2), it's the size the square needs to be for there to not be a gap when rotated
         int tilesToRender = (int) Math.ceil(362f / tileSize);
         if (tilesToRender % 2 == 0) tilesToRender++; // if even, make it odd
