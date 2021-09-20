@@ -44,6 +44,11 @@ public class MinimapView extends FlexComponent {
 
     private final World world;
 
+    private BufferedImage renderedImage;
+    private boolean isDirty = false;
+    private int renderedTileX = -1;
+    private int renderedTileY = -1;
+
     private Map<Tiles.Tile, BufferedImage> initTileImages() {
         Map<Tiles.Tile, BufferedImage> map = new HashMap<>();
         try {
@@ -53,6 +58,8 @@ public class MinimapView extends FlexComponent {
             map.put(Tiles.Tile.TILE_FIELD2, ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/textures/farm.png"))));
             map.put(Tiles.Tile.TILE_COBBLESTONE, ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/textures/cobble.png"))));
             map.put(Tiles.Tile.TILE_ROCK, ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/textures/rock.png"))));
+            map.put(Tiles.Tile.TILE_GRAVEL, ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/textures/gravel.png"))));
+            map.put(Tiles.Tile.TILE_DIRT_PACKED, ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/textures/packed.png"))));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -93,38 +100,38 @@ public class MinimapView extends FlexComponent {
         }
     }
 
+    private BufferedImage cloneImage(BufferedImage original) {
+            BufferedImage clone = new BufferedImage(original.getWidth(), original.getHeight(), original.getType());
+            Graphics2D gfx = clone.createGraphics();
+            gfx.drawImage(original, null, 0, 0);
+            gfx.dispose();
+
+            return clone;
+    }
+
     private BufferedImage getImageForTile(int x, int y) {
         NearTerrainDataBuffer nearTerrainBuffer = world.getNearTerrainBuffer();
-        float height = nearTerrainBuffer.getHeight(x, y);
-        float waterHeight = nearTerrainBuffer.getWaterHeight(x, y);
-        if (waterHeight >= height)
-            return waterImage;
 
         Tiles.Tile tileType = nearTerrainBuffer.getTileType(x, y);
         if (tileType.isTree() || tileType.isBush())
-            return tileImages.getOrDefault(Tiles.Tile.TILE_GRASS, missingImage);
+            tileType = Tiles.Tile.TILE_GRASS;
 
         BufferedImage tileImage = tileImages.getOrDefault(tileType, missingImage);
         if (tileType.isRoad()) {
-            int roaddir = nearTerrainBuffer.getData(x, y) & 7;
+            int roadDir = nearTerrainBuffer.getData(x, y) & 7;
             Tiles.TileRoadDirection roadDirection = Tiles.TileRoadDirection.DIR_STRAIGHT;
-            if (roaddir == 1) {
+            if (roadDir == 1) {
                 roadDirection = Tiles.TileRoadDirection.DIR_NW;
-            } else if (roaddir == 2) {
+            } else if (roadDir == 2) {
                 roadDirection = Tiles.TileRoadDirection.DIR_NE;
-            } else if (roaddir == 3) {
+            } else if (roadDir == 3) {
                 roadDirection = Tiles.TileRoadDirection.DIR_SE;
-            } else if (roaddir == 4) {
+            } else if (roadDir == 4) {
                 roadDirection = Tiles.TileRoadDirection.DIR_SW;
             }
 
             if (roadDirection != Tiles.TileRoadDirection.DIR_STRAIGHT) {
-                BufferedImage newImage = new BufferedImage(32, 32, BufferedImage.TYPE_INT_RGB);
-                Graphics2D gfx = newImage.createGraphics();
-                gfx.drawImage(tileImage, null, 0, 0);
-                gfx.dispose();
-
-                tileImage = newImage;
+                tileImage = cloneImage(tileImage);
 
                 BufferedImage northTileImage = null;
                 BufferedImage eastTileImage = null;
@@ -168,7 +175,6 @@ public class MinimapView extends FlexComponent {
     protected void renderComponent(Queue queue, float alpha) {
         super.renderComponent(queue, alpha);
 
-
         PlayerObj player = this.world.getPlayer();
         PlayerPosition pos = player.getPos();
         int tileX = pos.getTileX();
@@ -176,16 +182,58 @@ public class MinimapView extends FlexComponent {
         float xOffset = 1f - ((pos.getX() / 4.0f) - tileX);
         float yOffset = 1f - ((pos.getY() / 4.0f) - tileY);
 
+        if (renderedTileX != tileX || renderedTileY != tileY) isDirty = true;
+        if (isDirty) renderImage(tileX, tileY);
+
         // TODO: move these somewhere configurable
-        int tileSize = 32;
-        boolean isNorthFacing = true;
+        int tileSize = 16;
+        boolean isNorthFacing = false;
         // 362 is the result of Math.sqrt(256^2 + 256^2), it's the size the square needs to be for there to not be a gap when rotated
         int tilesToRender = (int) Math.ceil(362f / tileSize);
         if (tilesToRender % 2 == 0) tilesToRender++; // if even, make it odd
         int imageSize = tilesToRender * tileSize;
 
-        BufferedImage img = new BufferedImage(imageSize, imageSize, BufferedImage.TYPE_INT_RGB);
-        Graphics2D gfx = img.createGraphics();
+        WorldRender worldRenderer = this.world.getWorldRenderer();
+        BufferedImage framedImg = new BufferedImage(256, 256, BufferedImage.TYPE_INT_RGB);
+        Graphics2D gfx = framedImg.createGraphics();
+        gfx.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        try {
+            float cameraRotX = ReflectionUtil.getPrivateField(worldRenderer, ReflectionUtil.getField(worldRenderer.getClass(), "cameraRotX"));
+
+            if (!isNorthFacing)
+                gfx.rotate(-cameraRotX, 128, 128);
+        } catch (IllegalAccessException | NoSuchFieldException e) {
+            throw new RuntimeException(e);
+        }
+        int imageTileOffset = -(imageSize - 256) / 2;
+        gfx.drawImage(renderedImage, null, imageTileOffset - (tileSize / 2) + Math.round(tileSize * xOffset), imageTileOffset - (tileSize / 2) + Math.round(tileSize * yOffset));
+        gfx.dispose();
+
+        if (this.texture == null) {
+            this.texture = ImageTextureLoader.loadNowrapNearestTexture(framedImg, false);
+        } else {
+            try {
+                PreProcessedTextureData data = ReflectionUtil.callPrivateMethod(TextureLoader.class, this.preprocessImage, new Object[]{framedImg, true});
+                this.texture.deferInit(data, TextureLoader.Filter.NEAREST, false, false, false);
+            } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException var5) {
+                throw new RuntimeException(var5);
+            }
+        }
+
+        Renderer.texturedQuadAlphaBlend(queue, this.texture, 1.0F, 1.0F, 1.0F, 1.0F, (float) this.x, (float) this.y, (float) 256, (float) 256, 0, 0, 1, 1);
+    }
+
+    private void renderImage(int tileX, int tileY) {
+        // TODO: move these somewhere configurable
+        int tileSize = 16;
+        boolean isNorthFacing = false;
+        // 362 is the result of Math.sqrt(256^2 + 256^2), it's the size the square needs to be for there to not be a gap when rotated
+        int tilesToRender = (int) Math.ceil(362f / tileSize);
+        if (tilesToRender % 2 == 0) tilesToRender++; // if even, make it odd
+        int imageSize = tilesToRender * tileSize;
+
+        renderedImage = new BufferedImage(imageSize, imageSize, BufferedImage.TYPE_INT_RGB);
+        Graphics2D gfx = renderedImage.createGraphics();
 
         for (int x = (int) -Math.floor(tilesToRender / 2f); x <= (int) Math.floor(tilesToRender / 2f); x++) {
             for (int y = (int) -Math.floor(tilesToRender / 2f); y <= (int) Math.floor(tilesToRender / 2f); y++) {
@@ -201,33 +249,22 @@ public class MinimapView extends FlexComponent {
         }
         gfx.dispose();
 
-        WorldRender worldRenderer = this.world.getWorldRenderer();
-        BufferedImage framedImg = new BufferedImage(256, 256, BufferedImage.TYPE_INT_RGB);
-        gfx = framedImg.createGraphics();
-        gfx.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        try {
-            float cameraRotX = ReflectionUtil.getPrivateField(worldRenderer, ReflectionUtil.getField(worldRenderer.getClass(), "cameraRotX"));
+        NearTerrainDataBuffer nearTerrainBuffer = world.getNearTerrainBuffer();
+        float waterHeight = nearTerrainBuffer.getWaterHeight(x, y);
+        for (int py = 0; py < imageSize; py++) {
+            for (int px = 0; px < imageSize; px++) {
+                int pTileX = tileX - (tilesToRender / 2);
+                float worldX = (pTileX + (px / (float) (tileSize - 1))) * 4f;
+                int pTileY = tileY - (tilesToRender / 2);
+                float worldY = (pTileY + (py / (float) (tileSize - 1))) * 4f;
 
-            if (!isNorthFacing)
-                gfx.rotate(-cameraRotX, 128, 128);
-        } catch (IllegalAccessException | NoSuchFieldException e) {
-            throw new RuntimeException(e);
-        }
-        int imageTileOffset = -(imageSize - 256) / 2;
-        gfx.drawImage(img, null, imageTileOffset - (tileSize / 2) + Math.round(tileSize * xOffset), imageTileOffset - (tileSize / 2) + Math.round(tileSize * yOffset));
-        gfx.dispose();
-
-        if (this.texture == null) {
-            this.texture = ImageTextureLoader.loadNowrapNearestTexture(framedImg, false);
-        } else {
-            try {
-                PreProcessedTextureData data = ReflectionUtil.callPrivateMethod(TextureLoader.class, this.preprocessImage, new Object[]{framedImg, true});
-                this.texture.deferInit(data, TextureLoader.Filter.NEAREST, false, false, false);
-            } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException var5) {
-                throw new RuntimeException(var5);
+                float pointHeight = nearTerrainBuffer.getInterpolatedHeight(worldX, worldY);
+                if (waterHeight >= pointHeight) renderedImage.setRGB(px, py, waterImage.getRGB((px % tileSize) * (32 / tileSize), (py % tileSize) * (32 / tileSize)));
             }
         }
 
-        Renderer.texturedQuadAlphaBlend(queue, this.texture, 1.0F, 1.0F, 1.0F, 1.0F, (float) this.x, (float) this.y, (float) 256, (float) 256, 0, 0, 1, 1);
+        renderedTileX = tileX;
+        renderedTileY = tileY;
+        isDirty = false;
     }
 }
