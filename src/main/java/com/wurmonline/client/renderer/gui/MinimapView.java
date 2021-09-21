@@ -11,10 +11,13 @@ import com.wurmonline.client.game.PlayerPosition;
 import com.wurmonline.client.game.World;
 import com.wurmonline.client.renderer.WorldRender;
 import com.wurmonline.client.renderer.backend.Queue;
+import com.wurmonline.client.renderer.cell.CreatureCellRenderable;
+import com.wurmonline.client.renderer.cell.PlayerCellRenderable;
 import com.wurmonline.client.resources.textures.ImageTexture;
 import com.wurmonline.client.resources.textures.ImageTextureLoader;
 import com.wurmonline.client.resources.textures.PreProcessedTextureData;
 import com.wurmonline.client.resources.textures.TextureLoader;
+import com.wurmonline.math.Vector2f;
 import com.wurmonline.mesh.Tiles;
 import org.gotti.wurmunlimited.modloader.ReflectionUtil;
 
@@ -33,10 +36,32 @@ public class MinimapView extends FlexComponent {
     private final Map<Tiles.Tile, BufferedImage> tileImages = initTileImages();
     private final BufferedImage missingImage = createMissingImage();
     private final BufferedImage waterImage;
+    private final BufferedImage playerCursorImage;
+    private final BufferedImage neutralIcon;
+    private final BufferedImage friendIcon;
+    private final BufferedImage allyIcon;
+    private final BufferedImage hostileIcon;
+    private final BufferedImage neutralPlayerIcon;
+    private final BufferedImage friendPlayerIcon;
+    private final BufferedImage allyPlayerIcon;
+    private final BufferedImage hostilePlayerIcon;
+    private final BufferedImage gmPlayerIcon;
+    private final BufferedImage devPlayerIcon;
 
     {
         try {
             waterImage = ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/textures/water.png")));
+            playerCursorImage = ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/sprites/player-arrow.png")));
+            neutralIcon = ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/sprites/icon-neutral.png")));
+            friendIcon = ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/sprites/icon-friend.png")));
+            allyIcon = ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/sprites/icon-ally.png")));
+            hostileIcon = ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/sprites/icon-hostile.png")));
+            neutralPlayerIcon = ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/sprites/icon-player-neutral.png")));
+            friendPlayerIcon = ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/sprites/icon-player-friend.png")));
+            allyPlayerIcon = ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/sprites/icon-player-ally.png")));
+            hostilePlayerIcon = ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/sprites/icon-player-hostile.png")));
+            gmPlayerIcon = ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/sprites/icon-player-gm.png")));
+            devPlayerIcon = ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/sprites/icon-player-dev.png")));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -49,6 +74,18 @@ public class MinimapView extends FlexComponent {
     private int renderedTileX = -1;
     private int renderedTileY = -1;
 
+    // TODO: move these somewhere configurable
+    int tileSize = 16;
+    boolean isNorthFacing = false;
+    // 362 is the result of Math.sqrt(256^2 + 256^2), it's the size the square needs to be for there to not be a gap when rotated
+    int tilesToRender = (int) Math.ceil(362f / tileSize);
+
+    {
+        if (tilesToRender % 2 == 0) tilesToRender++; // if even, make it odd
+    }
+
+    int imageSize = tilesToRender * tileSize;
+
     private Map<Tiles.Tile, BufferedImage> initTileImages() {
         Map<Tiles.Tile, BufferedImage> map = new HashMap<>();
         try {
@@ -57,9 +94,15 @@ public class MinimapView extends FlexComponent {
             map.put(Tiles.Tile.TILE_FIELD, ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/textures/farm.png"))));
             map.put(Tiles.Tile.TILE_FIELD2, ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/textures/farm.png"))));
             map.put(Tiles.Tile.TILE_COBBLESTONE, ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/textures/cobble.png"))));
+            map.put(Tiles.Tile.TILE_COBBLESTONE_ROUND, ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/textures/cobble3.png"))));
             map.put(Tiles.Tile.TILE_ROCK, ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/textures/rock.png"))));
             map.put(Tiles.Tile.TILE_GRAVEL, ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/textures/gravel.png"))));
             map.put(Tiles.Tile.TILE_DIRT_PACKED, ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/textures/packed.png"))));
+            map.put(Tiles.Tile.TILE_LAWN, ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/textures/lawn.png"))));
+            map.put(Tiles.Tile.TILE_STONE_SLABS, ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/textures/slab.png"))));
+            map.put(Tiles.Tile.TILE_PLANKS, ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/textures/planks.png"))));
+            map.put(Tiles.Tile.TILE_MARBLE_SLABS, ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/textures/marbleslab.png"))));
+            map.put(Tiles.Tile.TILE_SAND, ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream("/textures/sand.png"))));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -101,12 +144,12 @@ public class MinimapView extends FlexComponent {
     }
 
     private BufferedImage cloneImage(BufferedImage original) {
-            BufferedImage clone = new BufferedImage(original.getWidth(), original.getHeight(), original.getType());
-            Graphics2D gfx = clone.createGraphics();
-            gfx.drawImage(original, null, 0, 0);
-            gfx.dispose();
+        BufferedImage clone = new BufferedImage(original.getWidth(), original.getHeight(), original.getType());
+        Graphics2D gfx = clone.createGraphics();
+        gfx.drawImage(original, null, 0, 0);
+        gfx.dispose();
 
-            return clone;
+        return clone;
     }
 
     private BufferedImage getImageForTile(int x, int y) {
@@ -185,29 +228,39 @@ public class MinimapView extends FlexComponent {
         if (renderedTileX != tileX || renderedTileY != tileY) isDirty = true;
         if (isDirty) renderImage(tileX, tileY);
 
-        // TODO: move these somewhere configurable
-        int tileSize = 16;
-        boolean isNorthFacing = false;
-        // 362 is the result of Math.sqrt(256^2 + 256^2), it's the size the square needs to be for there to not be a gap when rotated
-        int tilesToRender = (int) Math.ceil(362f / tileSize);
-        if (tilesToRender % 2 == 0) tilesToRender++; // if even, make it odd
-        int imageSize = tilesToRender * tileSize;
-
         WorldRender worldRenderer = this.world.getWorldRenderer();
         BufferedImage framedImg = new BufferedImage(256, 256, BufferedImage.TYPE_INT_RGB);
-        Graphics2D gfx = framedImg.createGraphics();
-        gfx.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        Graphics2D framedGfx = framedImg.createGraphics();
+        framedGfx.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        float cameraRotX;
         try {
-            float cameraRotX = ReflectionUtil.getPrivateField(worldRenderer, ReflectionUtil.getField(worldRenderer.getClass(), "cameraRotX"));
-
-            if (!isNorthFacing)
-                gfx.rotate(-cameraRotX, 128, 128);
+            cameraRotX = ReflectionUtil.getPrivateField(worldRenderer, ReflectionUtil.getField(worldRenderer.getClass(), "cameraRotX"));
         } catch (IllegalAccessException | NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
+
+        if (!isNorthFacing)
+            framedGfx.rotate(-cameraRotX, 128, 128);
         int imageTileOffset = -(imageSize - 256) / 2;
-        gfx.drawImage(renderedImage, null, imageTileOffset - (tileSize / 2) + Math.round(tileSize * xOffset), imageTileOffset - (tileSize / 2) + Math.round(tileSize * yOffset));
-        gfx.dispose();
+        framedGfx.drawImage(renderedImage, null, imageTileOffset - (tileSize / 2) + Math.round(tileSize * xOffset), imageTileOffset - (tileSize / 2) + Math.round(tileSize * yOffset));
+
+        BufferedImage iconOverlay = new BufferedImage(imageSize, imageSize, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D iconOverlayGfx = iconOverlay.createGraphics();
+
+        Vector2f playerPixelPos = getPixelPos(world.getPlayerPosX(), world.getPlayerPosY());
+        iconOverlayGfx.rotate(cameraRotX, (int) playerPixelPos.x, (int) playerPixelPos.y);
+        iconOverlayGfx.drawImage(playerCursorImage, null, (int) playerPixelPos.x - 5, (int) playerPixelPos.y - 7);
+        iconOverlayGfx.rotate(-cameraRotX, (int) playerPixelPos.x, (int) playerPixelPos.y);
+
+        world.getServerConnection().getServerConnectionListener().getCreatures().forEach((id, creature) -> {
+            BufferedImage icon = getIconForCreature(creature);
+            Vector2f creaturePixelPos = getPixelPos(creature.getXPos(), creature.getYPos());
+            iconOverlayGfx.drawImage(icon, null, (int) creaturePixelPos.x - 4, (int) creaturePixelPos.y - 4);
+        });
+        iconOverlayGfx.dispose();
+
+        framedGfx.drawImage(iconOverlay, null, imageTileOffset - (tileSize / 2) + Math.round(tileSize * xOffset), imageTileOffset - (tileSize / 2) + Math.round(tileSize * yOffset));
+        framedGfx.dispose();
 
         if (this.texture == null) {
             this.texture = ImageTextureLoader.loadNowrapNearestTexture(framedImg, false);
@@ -223,15 +276,80 @@ public class MinimapView extends FlexComponent {
         Renderer.texturedQuadAlphaBlend(queue, this.texture, 1.0F, 1.0F, 1.0F, 1.0F, (float) this.x, (float) this.y, (float) 256, (float) 256, 0, 0, 1, 1);
     }
 
-    private void renderImage(int tileX, int tileY) {
-        // TODO: move these somewhere configurable
-        int tileSize = 16;
-        boolean isNorthFacing = false;
-        // 362 is the result of Math.sqrt(256^2 + 256^2), it's the size the square needs to be for there to not be a gap when rotated
-        int tilesToRender = (int) Math.ceil(362f / tileSize);
-        if (tilesToRender % 2 == 0) tilesToRender++; // if even, make it odd
-        int imageSize = tilesToRender * tileSize;
+    private Vector2f getPixelPos(float xPos, float yPos) {
+        float xDiff = (xPos / 4f) - renderedTileX;
+        float yDiff = (yPos / 4f) - renderedTileY;
 
+        return new Vector2f((int) (imageSize / 2f) + (xDiff * tileSize) - (tileSize / 2f), (int) (imageSize / 2f) + (yDiff * tileSize) - (tileSize / 2f));
+    }
+
+    private BufferedImage getIconForCreature(CreatureCellRenderable creature) {
+        // TODO: check if creature is a cart, chair, etc and return null
+
+        int attitude;
+        try {
+            attitude = ReflectionUtil.getPrivateField(creature, ReflectionUtil.getField(creature.getClass(), "attitude"));
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+
+        boolean isPlayer = creature instanceof PlayerCellRenderable;
+        String status = "neutral";
+        switch (attitude) {
+            case 1:
+            case 5:
+                status = "ally";
+                break;
+            case 2:
+            case 4:
+                status = "hostile";
+                break;
+            case 3:
+                status = "gm";
+                break;
+            case 6:
+                status = "dev";
+                break;
+            case 7:
+                status = "friend";
+                break;
+        }
+
+        if (isPlayer) {
+            switch (status) {
+                case "neutral":
+                    return neutralPlayerIcon;
+                case "friend":
+                    return friendPlayerIcon;
+                case "hostile":
+                    return hostilePlayerIcon;
+                case "ally":
+                    return allyPlayerIcon;
+                case "gm":
+                    return gmPlayerIcon;
+                case "dev":
+                    return devPlayerIcon;
+            }
+        }
+
+        switch (status) {
+            case "neutral":
+            case "gm":
+            case "dev":
+                return neutralIcon;
+            case "friend":
+                return friendIcon;
+            case "hostile":
+                return hostileIcon;
+            case "ally":
+                return allyIcon;
+        }
+
+        // should never be hit
+        throw new RuntimeException("No icon, attitude: " + attitude + ", isPlayer: " + isPlayer);
+    }
+
+    private void renderImage(int tileX, int tileY) {
         renderedImage = new BufferedImage(imageSize, imageSize, BufferedImage.TYPE_INT_RGB);
         Graphics2D gfx = renderedImage.createGraphics();
 
@@ -247,7 +365,6 @@ public class MinimapView extends FlexComponent {
                 );
             }
         }
-        gfx.dispose();
 
         NearTerrainDataBuffer nearTerrainBuffer = world.getNearTerrainBuffer();
         float waterHeight = nearTerrainBuffer.getWaterHeight(x, y);
@@ -259,12 +376,34 @@ public class MinimapView extends FlexComponent {
                 float worldY = (pTileY + (py / (float) (tileSize - 1))) * 4f;
 
                 float pointHeight = nearTerrainBuffer.getInterpolatedHeight(worldX, worldY);
-                if (waterHeight >= pointHeight) renderedImage.setRGB(px, py, waterImage.getRGB((px % tileSize) * (32 / tileSize), (py % tileSize) * (32 / tileSize)));
+                if (waterHeight >= pointHeight)
+                    renderedImage.setRGB(px, py, waterImage.getRGB((px % tileSize) * (32 / tileSize), (py % tileSize) * (32 / tileSize)));
             }
         }
+
+        // TODO: check what the structure is, a lot of things are "structures", including hedges, walls, flowerbeds
+        world.getServerConnection().getServerConnectionListener().getStructures().forEach((id, structure) -> {
+            int structureTileX = structure.getTileX() - tileX;
+            int structureTileY = structure.getTileY() - tileY;
+            if (Math.min(structureTileX, structureTileY) < (int) -Math.floor(tilesToRender / 2f)
+                    || Math.max(structureTileX, structureTileY) > (int) Math.floor(tilesToRender / 2f)) return;
+
+            gfx.drawImage(
+                    missingImage,
+                    Math.round((structureTileX + (int) Math.floor(tilesToRender / 2f)) * tileSize),
+                    Math.round((structureTileY + (int) Math.floor(tilesToRender / 2f)) * tileSize),
+                    tileSize,
+                    tileSize,
+                    null
+            );
+        });
+
+        gfx.dispose();
 
         renderedTileX = tileX;
         renderedTileY = tileY;
         isDirty = false;
     }
 }
+
+// TODO: perf test it, try out dweia's deed switfwood
