@@ -5,10 +5,7 @@
 
 package com.wurmonline.client.renderer.gui;
 
-import com.wurmonline.client.game.NearTerrainDataBuffer;
-import com.wurmonline.client.game.PlayerObj;
-import com.wurmonline.client.game.PlayerPosition;
-import com.wurmonline.client.game.World;
+import com.wurmonline.client.game.*;
 import com.wurmonline.client.renderer.WorldRender;
 import com.wurmonline.client.renderer.backend.Queue;
 import com.wurmonline.client.renderer.cell.CreatureCellRenderable;
@@ -21,6 +18,7 @@ import com.wurmonline.client.resources.textures.TextureLoader;
 import com.wurmonline.math.Vector2f;
 import com.wurmonline.mesh.Tiles;
 import com.wurmonline.shared.constants.BridgeConstants;
+import com.wurmonline.shared.constants.StructureConstants;
 import com.wurmonline.shared.constants.StructureMaterialEnum;
 import com.wurmonline.shared.util.MovementChecker;
 import org.gotti.wurmunlimited.modloader.ReflectionUtil;
@@ -32,6 +30,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.stream.Stream;
 
 import static com.wurmonline.mesh.Tiles.Tile.*;
 import static com.wurmonline.mesh.Tiles.TileRoadDirection.*;
@@ -40,7 +39,9 @@ public class MinimapView extends FlexComponent {
     private final Map<Tiles.Tile, BufferedImage> tileImages = initTileImages();
     private final Map<BridgeConstants.BridgeMaterial, BufferedImage> bridgeImages = initBridgeImages();
     private final Map<StructureMaterialEnum, Color> fenceColors = initFenceColors();
+    private final Map<StructureConstants.FloorMaterial, BufferedImage> houseMaterialImages = initHouseMaterialImages();
     private final BufferedImage missingImage = createMissingImage();
+    private final BufferedImage holeImage = createHoleImage();
     private final BufferedImage waterImage;
     private final BufferedImage playerCursorImage;
     private final BufferedImage neutralIcon;
@@ -83,9 +84,10 @@ public class MinimapView extends FlexComponent {
     private boolean isDirty = false;
     private int renderedTileX = -1;
     private int renderedTileY = -1;
+    private int renderedLayer = -1000;
 
     // TODO: move these somewhere configurable
-    int tileSize = 16;
+    int tileSize = 32;
     boolean isNorthFacing = false;
     // 362 is the result of Math.sqrt(256^2 + 256^2), it's the size the square needs to be for there to not be a gap when rotated
     int tilesToRender = (int) Math.ceil(362f / tileSize);
@@ -133,11 +135,37 @@ public class MinimapView extends FlexComponent {
         simpleMap.put(TILE_TAR, "tar");
         simpleMap.put(TILE_TREE_OAK, "forest");
         simpleMap.put(TILE_TUNDRA, "tundra");
+        simpleMap.put(TILE_CAVE, "cave512");
+        simpleMap.put(TILE_CAVE_EXIT, "reinforcedcaveFloor_v1");
+        simpleMap.put(TILE_CAVE_FLOOR_REINFORCED, "reinforcedcaveFloor_v1");
 
         Map<Tiles.Tile, BufferedImage> map = new HashMap<>();
         simpleMap.forEach((tileType, imagePath) -> {
             try {
                 map.put(tileType, loadImage("/textures/terrain/" + imagePath + ".png"));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        return Collections.unmodifiableMap(map);
+    }
+
+    private Map<StructureConstants.FloorMaterial, BufferedImage> initHouseMaterialImages() {
+        Map<StructureConstants.FloorMaterial, String> simpleMap = new HashMap<>();
+        simpleMap.put(StructureConstants.FloorMaterial.CLAY_BRICK, "clay_brick_dist");
+        simpleMap.put(StructureConstants.FloorMaterial.MARBLE_SLAB, "marble_floor_dist");
+        simpleMap.put(StructureConstants.FloorMaterial.SANDSTONE_SLAB, "slab_floor_dist");
+        simpleMap.put(StructureConstants.FloorMaterial.SLATE_SLAB, "slate_floor_dist");
+        simpleMap.put(StructureConstants.FloorMaterial.STONE_BRICK, "brick_floor_dist");
+        simpleMap.put(StructureConstants.FloorMaterial.STONE_SLAB, "slab_floor_dist2");
+        simpleMap.put(StructureConstants.FloorMaterial.THATCH, "thatched");
+        simpleMap.put(StructureConstants.FloorMaterial.WOOD, "floor_dist");
+        simpleMap.put(StructureConstants.FloorMaterial.STANDALONE, "Floor_Plan_dist");
+
+        Map<StructureConstants.FloorMaterial, BufferedImage> map = new HashMap<>();
+        simpleMap.forEach((tileType, imagePath) -> {
+            try {
+                map.put(tileType, loadImage("/textures/house/" + imagePath + ".png"));
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -192,6 +220,7 @@ public class MinimapView extends FlexComponent {
         map.put(StructureMaterialEnum.MARBLE, new Color(0xccc8bf));
         map.put(StructureMaterialEnum.FIRE, new Color(0xFF8400));
         map.put(StructureMaterialEnum.ICE, new Color(0x7BCBFF));
+        map.put(StructureMaterialEnum.TIMBER_FRAMED, new Color(0xcccccc));
 
         return Collections.unmodifiableMap(map);
     }
@@ -200,6 +229,16 @@ public class MinimapView extends FlexComponent {
         BufferedImage image = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
         Graphics2D gfx = image.createGraphics();
         gfx.setBackground(Color.MAGENTA);
+        gfx.clearRect(0, 0, 1, 1);
+        gfx.dispose();
+
+        return image;
+    }
+
+    private BufferedImage createHoleImage() {
+        BufferedImage image = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
+        Graphics2D gfx = image.createGraphics();
+        gfx.setBackground(new Color(0x222222));
         gfx.clearRect(0, 0, 1, 1);
         gfx.dispose();
 
@@ -240,14 +279,19 @@ public class MinimapView extends FlexComponent {
     }
 
     private BufferedImage getImageForTile(int x, int y) {
-        NearTerrainDataBuffer nearTerrainBuffer = world.getNearTerrainBuffer();
+        TerrainDataInformationProvider terrainBuffer = world.getPlayerLayer() == -1 ? world.getCaveBuffer() : world.getNearTerrainBuffer();
 
-        Tiles.Tile tileType = nearTerrainBuffer.getTileType(x, y);
+        Tiles.Tile tileType = terrainBuffer.getTileType(x, y);
         if (tileType.isTree() || tileType.isBush())
             tileType = tileType.isEnchanted() ? TILE_ENCHANTED_TREE_OAK : TILE_TREE_OAK;
 
         BufferedImage tileImage = tileImages.getOrDefault(tileType, missingImage);
-        if (tileType.isRoad()) {
+        if (tileType == TILE_HOLE || tileType.isSolidCave()) tileImage = holeImage;
+
+        if (tileImage == missingImage) System.out.println("Missing image for tile: " + tileType.getName());
+
+        if (terrainBuffer instanceof NearTerrainDataBuffer && tileType.isRoad()) {
+            NearTerrainDataBuffer nearTerrainBuffer = ((NearTerrainDataBuffer) terrainBuffer);
             int roadDir = nearTerrainBuffer.getData(x, y) & 7;
             Tiles.TileRoadDirection roadDirection = Tiles.TileRoadDirection.DIR_STRAIGHT;
             if (roadDir == 1) {
@@ -305,17 +349,18 @@ public class MinimapView extends FlexComponent {
     protected void renderComponent(Queue queue, float alpha) {
         super.renderComponent(queue, alpha);
 
-        PlayerObj player = this.world.getPlayer();
+        PlayerObj player = world.getPlayer();
         PlayerPosition pos = player.getPos();
         int tileX = pos.getTileX();
         int tileY = pos.getTileY();
+        int layer = world.getPlayerLayer();
         float xOffset = 1f - ((pos.getX() / 4.0f) - tileX);
         float yOffset = 1f - ((pos.getY() / 4.0f) - tileY);
 
-        if (renderedTileX != tileX || renderedTileY != tileY) isDirty = true;
-        if (isDirty) renderImage(tileX, tileY);
+        if (renderedTileX != tileX || renderedTileY != tileY || renderedLayer != layer) isDirty = true;
+        if (isDirty) renderImage(tileX, tileY, layer);
 
-        WorldRender worldRenderer = this.world.getWorldRenderer();
+        WorldRender worldRenderer = world.getWorldRenderer();
         BufferedImage framedImg = new BufferedImage(256, 256, BufferedImage.TYPE_INT_RGB);
         Graphics2D framedGfx = framedImg.createGraphics();
         framedGfx.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -436,7 +481,7 @@ public class MinimapView extends FlexComponent {
         throw new RuntimeException("No icon, attitude: " + attitude + ", isPlayer: " + isPlayer);
     }
 
-    private void renderImage(int tileX, int tileY) {
+    private void renderImage(int tileX, int tileY, int layer) {
         renderedImage = new BufferedImage(imageSize, imageSize, BufferedImage.TYPE_INT_RGB);
         Graphics2D gfx = renderedImage.createGraphics();
 
@@ -470,15 +515,23 @@ public class MinimapView extends FlexComponent {
 
         renderedTileX = tileX;
         renderedTileY = tileY;
+        renderedLayer = layer;
         isDirty = false;
 
-        world.getServerConnection().getServerConnectionListener().getStructures().forEach((id, structure) -> drawStructure(gfx, structure));
+        world.getServerConnection().getServerConnectionListener().getStructures().values().stream().sorted(Comparator.comparingInt((structure) -> {
+            if (structure instanceof FenceData) return 0;
+            if (structure instanceof BridgeData) return 1;
+            if (structure instanceof HouseData) return 2;
+
+            return 100;
+        })).forEach((structure) -> {
+            if (structure.getLayer() == layer) drawStructure(gfx, structure);
+        });
 
         gfx.dispose();
     }
 
     private void drawStructure(Graphics2D gfx, StructureData structure) {
-        System.out.println("structure: " + structure.getClass().getName() + ", tileX: " + structure.getTileX() + ", tileY: " + structure.getTileY());
         int tileX = structure.getTileX() - renderedTileX;
         int tileY = structure.getTileY() - renderedTileY;
 
@@ -538,8 +591,78 @@ public class MinimapView extends FlexComponent {
 
             return;
         } else if (structure instanceof HouseData) {
-            gfx.setPaint(Color.GRAY);
+            try {
+                Map<Long, HouseFloorData> floorMap = ReflectionUtil.getPrivateField(structure, ReflectionUtil.getField(HouseData.class, "floors"));
+                Map<Long, HouseWallData> wallMap = ReflectionUtil.getPrivateField(structure, ReflectionUtil.getField(HouseData.class, "walls"));
+                Map<Long, HouseRoofData> roofMap = ReflectionUtil.getPrivateField(structure, ReflectionUtil.getField(HouseData.class, "roofs"));
+                final boolean[] isPlayerInHouse = {false};
+                floorMap.forEach((id, floor) -> {
+                    if (isPlayerInHouse[0]) return;
+
+                    if (floor.getTileX() == renderedTileX && floor.getTileY() == renderedTileY)
+                        isPlayerInHouse[0] = true;
+                });
+
+                if (!isPlayerInHouse[0]) {
+                    roofMap.forEach((id, roof) -> {
+                        if (isPlayerInHouse[0]) return;
+
+                        if (roof.getTileX() == renderedTileX && roof.getTileY() == renderedTileY)
+                            isPlayerInHouse[0] = true;
+                    });
+                }
+
+                Stream<HouseFloorData> floors = floorMap.values().stream().sorted(Comparator.comparingInt(StructureData::getLayer));
+                Stream<HouseWallData> walls = wallMap.values().stream().sorted(Comparator.comparingInt(StructureData::getLayer));
+                Stream<HouseRoofData> roofs = roofMap.values().stream().sorted(Comparator.comparingInt(StructureData::getLayer));
+
+                if (isPlayerInHouse[0]) {
+                    float playerPosH = world.getPlayerPosH();
+                    floors = floors.filter((floor) -> floor.getHPos() <= playerPosH);
+                    walls = walls.filter((wall) -> wall.getHPos() <= playerPosH);
+                    roofs = roofs.filter((roof) -> roof.getHPos() <= playerPosH);
+                }
+
+                ArrayList<ArrayList<HouseFloorData>> layeredFloors = new ArrayList<>();
+                ArrayList<ArrayList<HouseWallData>> layeredWalls = new ArrayList<>();
+                ArrayList<ArrayList<HouseRoofData>> layeredRoofs = new ArrayList<>();
+
+                floors.forEach((floor) -> {
+                    int layerInd = floor.getHeightOffset() / 30;
+                    while (layerInd >= layeredFloors.size()) layeredFloors.add(new ArrayList<>());
+                    ArrayList<HouseFloorData> layer = layeredFloors.get(layerInd);
+
+                    layer.add(floor);
+                });
+
+                walls.forEach((wall) -> {
+                    int layerInd = wall.getHeightOffset() / 30;
+                    while (layerInd >= layeredWalls.size()) layeredWalls.add(new ArrayList<>());
+                    ArrayList<HouseWallData> layer = layeredWalls.get(layerInd);
+
+                    layer.add(wall);
+                });
+
+                roofs.forEach((roof) -> {
+                    int layerInd = roof.getHeightOffset() / 30;
+                    while (layerInd >= layeredRoofs.size()) layeredRoofs.add(new ArrayList<>());
+                    ArrayList<HouseRoofData> layer = layeredRoofs.get(layerInd);
+
+                    layer.add(roof);
+                });
+
+                for (int i = 0; i < Math.max(Math.max(layeredFloors.size(), layeredWalls.size()), layeredRoofs.size()); i++) {
+                    if (layeredFloors.size() > i) layeredFloors.get(i).forEach((floor) -> renderHouseFloor(gfx, floor));
+                    if (layeredWalls.size() > i) layeredWalls.get(i).forEach((wall) -> renderHouseWall(gfx, wall));
+                    if (layeredRoofs.size() > i) layeredRoofs.get(i).forEach((roof) -> renderHouseRoof(gfx, roof));
+                }
+
+                return;
+            } catch (IllegalAccessException | NoSuchFieldException e) {
+                throw new RuntimeException(e);
+            }
         } else {
+            System.out.println("structure: " + structure.getClass().getName() + ", tileX: " + structure.getTileX() + ", tileY: " + structure.getTileY());
             return;
         }
 
@@ -563,16 +686,73 @@ public class MinimapView extends FlexComponent {
 //            );
     }
 
-    private void drawBridgePart(Graphics2D gfx, BridgePartData structure, boolean isOverPlayer) {
-        int tileX = structure.getTileX() - renderedTileX;
-        int tileY = structure.getTileY() - renderedTileY;
+    private void renderHouseRoof(Graphics2D gfx, HouseRoofData houseRoof) {
+        int tileX = houseRoof.getTileX() - renderedTileX;
+        int tileY = houseRoof.getTileY() - renderedTileY;
+
+        BufferedImage image = houseMaterialImages.getOrDefault(houseRoof.getMaterial(), missingImage);
+        gfx.drawImage(
+                image,
+                Math.round((tileX + (int) Math.floor(tilesToRender / 2f)) * tileSize),
+                Math.round((tileY + (int) Math.floor(tilesToRender / 2f)) * tileSize),
+                tileSize,
+                tileSize,
+                null
+        );
+    }
+
+    private void renderHouseWall(Graphics2D gfx, HouseWallData houseWall) {
+        int tileX = houseWall.getTileX() - renderedTileX;
+        int tileY = houseWall.getTileY() - renderedTileY;
+
+        gfx.setPaint(fenceColors.getOrDefault(houseWall.getType().material, Color.MAGENTA));
+
+        int thickness = (int) Math.floor(tileSize / 4f);
+        int xEnd = houseWall.getTileXEnd();
+        int yEnd = houseWall.getTileYEnd();
+        if (thickness < 1 || xEnd == tileX && yEnd == tileY) return;
+
+        int xSize = Math.max(thickness, tileSize * (xEnd - houseWall.getTileX()));
+        int ySize = Math.max(thickness, tileSize * (yEnd - houseWall.getTileY()));
+        int xStart = Math.round((tileX + (int) Math.floor(tilesToRender / 2f)) * tileSize);
+        int yStart = Math.round((tileY + (int) Math.floor(tilesToRender / 2f)) * tileSize);
+        if (xSize == thickness) xStart -= thickness / 2;
+        if (ySize == thickness) yStart -= thickness / 2;
+
+        if (houseWall.isGate())
+            gfx.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
+
+        gfx.fillRect(xStart, yStart, xSize, ySize);
+
+        if (houseWall.isGate())
+            gfx.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
+    }
+
+    private void renderHouseFloor(Graphics2D gfx, HouseFloorData houseFloor) {
+        int tileX = houseFloor.getTileX() - renderedTileX;
+        int tileY = houseFloor.getTileY() - renderedTileY;
+
+        BufferedImage image = houseMaterialImages.getOrDefault(houseFloor.getMaterial(), missingImage);
+        gfx.drawImage(
+                image,
+                Math.round((tileX + (int) Math.floor(tilesToRender / 2f)) * tileSize),
+                Math.round((tileY + (int) Math.floor(tilesToRender / 2f)) * tileSize),
+                tileSize,
+                tileSize,
+                null
+        );
+    }
+
+    private void drawBridgePart(Graphics2D gfx, BridgePartData bridgePart, boolean isOverPlayer) {
+        int tileX = bridgePart.getTileX() - renderedTileX;
+        int tileY = bridgePart.getTileY() - renderedTileY;
 
         if (isOverPlayer)
             gfx.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
 
-        BufferedImage bridgeImage = bridgeImages.getOrDefault(structure.getMaterial(), missingImage);
+        BufferedImage image = bridgeImages.getOrDefault(bridgePart.getMaterial(), missingImage);
         gfx.drawImage(
-                bridgeImage,
+                image,
                 Math.round((tileX + (int) Math.floor(tilesToRender / 2f)) * tileSize),
                 Math.round((tileY + (int) Math.floor(tilesToRender / 2f)) * tileSize),
                 tileSize,
@@ -582,7 +762,7 @@ public class MinimapView extends FlexComponent {
 
         int shadowThickness = (int) Math.floor(tileSize / 8f);
         if (shadowThickness >= 1) {
-            boolean horizontal = structure.getDir() / 2 % 2 == 1;
+            boolean horizontal = bridgePart.getDir() / 2 % 2 == 1;
             for (int i = 0; i < shadowThickness; i++) {
                 gfx.setPaint(new Color(0, 0, 0, (0.5f / shadowThickness) * (shadowThickness - i)));
                 gfx.fillRect(
