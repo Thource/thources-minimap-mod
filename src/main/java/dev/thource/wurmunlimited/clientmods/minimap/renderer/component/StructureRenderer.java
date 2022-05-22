@@ -1,2 +1,5 @@
-package dev.thource.wurmunlimited.clientmods.minimap.renderer;public class StructureRenderer {
+package dev.thource.wurmunlimited.clientmods.minimap.renderer.component;
+
+public class StructureRenderer {
+
 }

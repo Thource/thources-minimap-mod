@@ -1,2 +1,5 @@
-package dev.thource.wurmunlimited.clientmods.minimap.renderer;public class BridgeRenderer {
+package dev.thource.wurmunlimited.clientmods.minimap.renderer.component;
+
+public class BridgeRenderer {
+
 }
