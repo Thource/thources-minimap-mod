@@ -28,8 +28,11 @@ import java.awt.AlphaComposite;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import javax.imageio.ImageIO;
 import org.gotti.wurmunlimited.modloader.ReflectionUtil;
 
 public class MinimapView extends FlexComponent {
@@ -251,6 +254,32 @@ public class MinimapView extends FlexComponent {
   public void removeStructure(StructureData structureData) {
     worldLayerRenderer.removeStructure(structureData);
     caveLayerRenderer.removeStructure(structureData);
+  }
+
+  public void dump() {
+    new Thread(
+            () -> {
+              File outputFile =
+                  new File("tests/" + System.currentTimeMillis() + "-world-render.png");
+              try {
+                ImageIO.write(worldLayerRenderer.render(), "png", outputFile);
+              } catch (IOException e) {
+                throw new RuntimeException(e);
+              }
+            })
+        .start();
+
+    new Thread(
+            () -> {
+              File outputFile =
+                  new File("tests/" + System.currentTimeMillis() + "-cave-render.png");
+              try {
+                ImageIO.write(caveLayerRenderer.render(), "png", outputFile);
+              } catch (IOException e) {
+                throw new RuntimeException(e);
+              }
+            })
+        .start();
   }
   //
   //    private void drawStructure(Graphics2D gfx, StructureData structure) {

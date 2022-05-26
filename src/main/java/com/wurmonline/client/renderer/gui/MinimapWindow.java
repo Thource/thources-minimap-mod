@@ -40,4 +40,8 @@ public class MinimapWindow extends WWindow {
   public void removeStructure(StructureData structureData) {
     minimapView.removeStructure(structureData);
   }
+
+  public void dump() {
+    minimapView.dump();
+  }
 }

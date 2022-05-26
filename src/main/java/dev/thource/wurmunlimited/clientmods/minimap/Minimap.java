@@ -181,7 +181,11 @@ public class Minimap implements WurmClientMod, Initable, PreInitable, ConsoleLis
           return true;
         case "redraw":
           minimapWindow.fullRedraw();
-          System.out.printf("[%s] Redrew%n", Minimap.class.getName());
+          System.out.printf("[%s] Redrawing%n", Minimap.class.getName());
+          return true;
+        case "dump":
+          minimapWindow.dump();
+          System.out.printf("[%s] Dumping%n", Minimap.class.getName());
           return true;
       }
     }

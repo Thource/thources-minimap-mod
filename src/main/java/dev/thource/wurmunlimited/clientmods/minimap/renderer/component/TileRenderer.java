@@ -32,7 +32,8 @@ public abstract class TileRenderer {
     float neCorner = getHeight(tileX + 1, tileY);
     float swCorner = getHeight(tileX, tileY + 1);
     float seCorner = getHeight(tileX + 1, tileY + 1);
-    if (nwCorner < waterHeight
+    if (!Constants.TRANSPARENT_WATER
+        && nwCorner < waterHeight
         && neCorner < waterHeight
         && swCorner < waterHeight
         && seCorner < waterHeight) {
@@ -49,40 +50,47 @@ public abstract class TileRenderer {
             && swCorner >= waterHeight
             && seCorner >= waterHeight;
 
-    for (int py = 0; py < Constants.TILE_SIZE; py++) {
-      for (int px = 0; px < Constants.TILE_SIZE; px++) {
-        float worldX = (tileX + ((float) px / (Constants.TILE_SIZE - 1))) * 4f;
+    if (Constants.RENDER_HEIGHT) {
+      for (int py = 0; py < Constants.TILE_SIZE; py++) {
         float worldY = (tileY + ((float) py / (Constants.TILE_SIZE - 1))) * 4f;
+        for (int px = 0; px < Constants.TILE_SIZE; px++) {
+          float worldX = (tileX + ((float) px / (Constants.TILE_SIZE - 1))) * 4f;
 
-        float pointHeight = getInterpolatedHeight(worldX, worldY);
-        if (!dryTile && waterHeight >= pointHeight) {
-          renderedTile.getImage().setRGB(px, py, ImageManager.waterImage.getRGB(px, py));
-        } else {
-          renderHeight(px, py, renderedTile, pointHeight, worldX, worldY);
+          float pointHeight = getInterpolatedHeight(worldX, worldY);
+          float alpha = Math.min(70 + waterHeight - pointHeight * 5, 255) / 255f;
+          if ((Constants.TRANSPARENT_WATER || dryTile || waterHeight < pointHeight) && alpha < 1) {
+            renderHeight(px, py, renderedTile, worldX, worldY);
+          }
         }
       }
     }
+    if (dryTile) {
+      return;
+    }
 
-    //    if (nwCorner >= waterHeight &&
-    //        neCorner >= waterHeight &&
-    //        swCorner >= waterHeight &&
-    //        seCorner >= waterHeight) {
-    //      return originalImage;
-    //    }
-    //
-    //    BufferedImage tileImage = cloneImage(originalImage);
-    //    for (int py = 0; py < Constants.TILE_SIZE; py++) {
-    //      for (int px = 0; px < Constants.TILE_SIZE; px++) {
-    //        float worldX = (tileX + ((float) px / (Constants.TILE_SIZE - 1))) * 4f;
-    //        float worldY = (tileY + ((float) py / (Constants.TILE_SIZE - 1))) * 4f;
-    //
-    //        float pointHeight = getInterpolatedHeight(worldX, worldY);
-    //        if (waterHeight >= pointHeight) {
-    //          tileImage.setRGB(px, py, ImageManager.waterImage.getRGB(px, py));
-    //        }
-    //      }
-    //    }
+    for (int py = 0; py < Constants.TILE_SIZE; py++) {
+      float worldY = (tileY + ((float) py / (Constants.TILE_SIZE - 1))) * 4f;
+      for (int px = 0; px < Constants.TILE_SIZE; px++) {
+        float worldX = (tileX + ((float) px / (Constants.TILE_SIZE - 1))) * 4f;
 
+        float pointHeight = getInterpolatedHeight(worldX, worldY);
+        if (waterHeight >= pointHeight) {
+          float alpha = Math.min(70 + waterHeight - pointHeight * 5, 255) / 255f;
+          if (Constants.TRANSPARENT_WATER && alpha < 1) {
+            Color currentColor = new Color(renderedTile.getImage().getRGB(px, py));
+            Color waterColor = new Color(ImageManager.waterImage.getRGB(px, py));
+            Color newColor =
+                new Color(
+                    (int) (currentColor.getRed() * (1 - alpha) + waterColor.getRed() * alpha),
+                    (int) (currentColor.getGreen() * (1 - alpha) + waterColor.getGreen() * alpha),
+                    (int) (currentColor.getBlue() * (1 - alpha) + waterColor.getBlue() * alpha));
+            renderedTile.getImage().setRGB(px, py, newColor.getRGB());
+          } else {
+            renderedTile.getImage().setRGB(px, py, ImageManager.waterImage.getRGB(px, py));
+          }
+        }
+      }
+    }
   }
 
   private float getAveragePointHeight(
@@ -99,8 +107,7 @@ public abstract class TileRenderer {
     return average / pixels;
   }
 
-  private void renderHeight(
-      int px, int py, RenderedTile renderedTile, float pointHeight, float worldX, float worldY) {
+  private void renderHeight(int px, int py, RenderedTile renderedTile, float worldX, float worldY) {
     Color heightColor =
         ShadedRelief.getColor(
             (IDataBuffer) tileBuffer, worldX, worldY, (1f / Constants.TILE_SIZE) * 4f);
