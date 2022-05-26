@@ -1,5 +1,9 @@
 package dev.thource.wurmunlimited.clientmods.minimap;
 
 public class Constants {
-  public static final int TILE_SIZE = 8;
+
+  private Constants() {
+  }
+
+  public static final int TILE_SIZE = 32;
 }

@@ -20,10 +20,13 @@ description = "Thource's Minimap Mod"
 java.sourceCompatibility = JavaVersion.VERSION_1_8
 
 dependencies {
-    implementation(files("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Wurm Unlimited\\WurmLauncher\\client-patched.jar"))
-    implementation(files("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Wurm Unlimited\\WurmLauncher\\common.jar"))
-    implementation(files("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Wurm Unlimited\\WurmLauncher\\javassist.jar"))
-    implementation(files("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Wurm Unlimited\\WurmLauncher\\modlauncher.jar"))
+    implementation(files("F:\\SteamLibrary\\steamapps\\common\\Wurm Unlimited\\WurmLauncher\\client-patched.jar"))
+    implementation(files("F:\\SteamLibrary\\steamapps\\common\\Wurm Unlimited\\WurmLauncher\\common.jar"))
+    implementation(files("F:\\SteamLibrary\\steamapps\\common\\Wurm Unlimited\\WurmLauncher\\javassist.jar"))
+    implementation(files("F:\\SteamLibrary\\steamapps\\common\\Wurm Unlimited\\WurmLauncher\\modlauncher.jar"))
+
+    compileOnly("org.projectlombok:lombok:1.18.4")
+    annotationProcessor("org.projectlombok:lombok:1.18.4")
 }
 
 publishing {

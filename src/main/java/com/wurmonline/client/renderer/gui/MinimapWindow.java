@@ -1,16 +1,18 @@
 package com.wurmonline.client.renderer.gui;
 
 import com.wurmonline.client.game.World;
+import com.wurmonline.client.renderer.structures.StructureData;
 
 public class MinimapWindow extends WWindow {
 
   private final WurmBorderPanel mainPanel;
+  private final MinimapView minimapView;
 
-  public MinimapWindow(World world) {
+  public MinimapWindow() {
     super("Minimap");
     this.setTitle("Minimap!");
     this.resizable = false;
-    MinimapView minimapView = new MinimapView("Minimap view", 256, 256);
+    minimapView = new MinimapView("Minimap view", 256, 256);
     this.mainPanel = new WurmBorderPanel("Minimap panel");
     this.mainPanel.setComponent(minimapView, 3);
     this.setComponent(this.mainPanel);
@@ -19,11 +21,23 @@ public class MinimapWindow extends WWindow {
     this.sizeFlags = 3;
   }
 
+  public void fullRedraw() {
+    minimapView.fullRedraw();
+  }
+
   public void closePressed() {
     hud.toggleComponent(this);
   }
 
   public void toggle() {
     hud.toggleComponent(this);
+  }
+
+  public void addStructure(StructureData structureData) {
+    minimapView.addStructure(structureData);
+  }
+
+  public void removeStructure(StructureData structureData) {
+    minimapView.removeStructure(structureData);
   }
 }

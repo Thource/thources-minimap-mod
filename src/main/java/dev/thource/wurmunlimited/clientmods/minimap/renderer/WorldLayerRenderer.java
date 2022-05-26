@@ -6,7 +6,7 @@ import dev.thource.wurmunlimited.clientmods.minimap.renderer.component.WorldTile
 public class WorldLayerRenderer extends LayerRenderer {
 
   public WorldLayerRenderer(World world) {
-    super(world);
+    super(world, 0);
     tileRenderer = new WorldTileRenderer(world, this);
     render(true);
   }

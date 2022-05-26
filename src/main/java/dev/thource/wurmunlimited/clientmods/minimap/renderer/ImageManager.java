@@ -29,6 +29,7 @@ import static com.wurmonline.mesh.Tiles.Tile.TILE_FIELD2;
 import static com.wurmonline.mesh.Tiles.Tile.TILE_GRASS;
 import static com.wurmonline.mesh.Tiles.Tile.TILE_GRAVEL;
 import static com.wurmonline.mesh.Tiles.Tile.TILE_HOLE;
+import static com.wurmonline.mesh.Tiles.Tile.TILE_KELP;
 import static com.wurmonline.mesh.Tiles.Tile.TILE_LAVA;
 import static com.wurmonline.mesh.Tiles.Tile.TILE_LAWN;
 import static com.wurmonline.mesh.Tiles.Tile.TILE_MARBLE_BRICKS;
@@ -59,8 +60,10 @@ import com.wurmonline.mesh.Tiles;
 import com.wurmonline.shared.constants.BridgeConstants;
 import com.wurmonline.shared.constants.StructureConstants;
 import com.wurmonline.shared.constants.StructureMaterialEnum;
+import dev.thource.wurmunlimited.clientmods.minimap.Constants;
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.Collections;
@@ -72,35 +75,59 @@ import org.gotti.wurmunlimited.modloader.ReflectionUtil;
 
 public class ImageManager {
 
-  public static final Map<BridgeConstants.BridgeMaterial, BufferedImage> bridgeImages = initBridgeImages();
+  public static final Map<BridgeConstants.BridgeMaterial, BufferedImage> bridgeImages =
+      initBridgeImages();
   public static final Map<StructureMaterialEnum, Color> fenceColors = initFenceColors();
-  public static final Map<StructureConstants.FloorMaterial, BufferedImage> houseMaterialImages = initHouseMaterialImages();
+  public static final Map<StructureConstants.FloorMaterial, BufferedImage> houseMaterialImages =
+      initHouseMaterialImages();
   public static final BufferedImage missingImage = createImageFromColor(Color.MAGENTA);
   public static final BufferedImage holeImage = createImageFromColor(new Color(0x202020));
   public static final Map<Tiles.Tile, BufferedImage> tileImages = initTileImages();
   public static final BufferedImage waterImage = loadImage("/textures/terrain/water.png");
-  public static final BufferedImage playerCursorImage = loadImage("/sprites/player-arrow.png");
-  public static final BufferedImage neutralIcon = loadImage("/sprites/icon-neutral.png");
-  public static final BufferedImage friendIcon = loadImage("/sprites/icon-friend.png");
-  public static final BufferedImage allyIcon = loadImage("/sprites/icon-ally.png");
-  public static final BufferedImage hostileIcon = loadImage("/sprites/icon-hostile.png");
-  public static final BufferedImage neutralPlayerIcon = loadImage(
-      "/sprites/icon-player-neutral.png");
-  public static final BufferedImage friendPlayerIcon = loadImage("/sprites/icon-player-friend.png");
-  public static final BufferedImage allyPlayerIcon = loadImage("/sprites/icon-player-ally.png");
-  public static final BufferedImage hostilePlayerIcon = loadImage(
-      "/sprites/icon-player-hostile.png");
-  public static final BufferedImage gmPlayerIcon = loadImage("/sprites/icon-player-gm.png");
-  public static final BufferedImage devPlayerIcon = loadImage("/sprites/icon-player-dev.png");
+  public static final BufferedImage playerCursorImage =
+      loadImage("/sprites/player-arrow.png", false);
+  public static final BufferedImage neutralIcon = loadImage("/sprites/icon-neutral.png", false);
+  public static final BufferedImage friendIcon = loadImage("/sprites/icon-friend.png", false);
+  public static final BufferedImage allyIcon = loadImage("/sprites/icon-ally.png", false);
+  public static final BufferedImage hostileIcon = loadImage("/sprites/icon-hostile.png", false);
+  public static final BufferedImage neutralPlayerIcon =
+      loadImage("/sprites/icon-player-neutral.png", false);
+  public static final BufferedImage friendPlayerIcon =
+      loadImage("/sprites/icon-player-friend.png", false);
+  public static final BufferedImage allyPlayerIcon =
+      loadImage("/sprites/icon-player-ally.png", false);
+  public static final BufferedImage hostilePlayerIcon =
+      loadImage("/sprites/icon-player-hostile.png", false);
+  public static final BufferedImage gmPlayerIcon = loadImage("/sprites/icon-player-gm.png", false);
+  public static final BufferedImage devPlayerIcon =
+      loadImage("/sprites/icon-player-dev.png", false);
 
   private static BufferedImage loadImage(String path) {
+    return loadImage(path, true);
+  }
+
+  private static BufferedImage loadImage(String path, boolean scale) {
     try {
-      return ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream(path)));
+      BufferedImage image =
+          ImageIO.read(Objects.requireNonNull(MinimapView.class.getResourceAsStream(path)));
+      if (!scale) {
+        return image;
+      }
+
+      Image scaledImage =
+          image.getScaledInstance(Constants.TILE_SIZE, Constants.TILE_SIZE, Image.SCALE_SMOOTH);
+
+      BufferedImage scaledBufferedImage =
+          new BufferedImage(Constants.TILE_SIZE, Constants.TILE_SIZE, image.getType());
+      Graphics2D graphics = scaledBufferedImage.createGraphics();
+      graphics.drawImage(scaledImage, 0, 0, null);
+      graphics.dispose();
+
+      return scaledBufferedImage;
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
-
 
   private static Map<Tiles.Tile, BufferedImage> initTileImages() {
     Map<Tiles.Tile, String> simpleMap = new HashMap<>();
@@ -126,6 +153,7 @@ public class ImageManager {
     simpleMap.put(TILE_MYCELIUM, "mycelium");
     simpleMap.put(TILE_PEAT, "peat");
     simpleMap.put(TILE_PLANKS, "planks");
+    simpleMap.put(TILE_KELP, "dirt");
     simpleMap.put(TILE_POTTERY_BRICKS, "potterybrickpaving");
     simpleMap.put(TILE_REED, "reed");
     simpleMap.put(TILE_ROCK, "rock");
@@ -144,8 +172,9 @@ public class ImageManager {
     simpleMap.put(TILE_CAVE_FLOOR_REINFORCED, "reinforcedcaveFloor_v1");
 
     Map<Tiles.Tile, BufferedImage> map = new HashMap<>();
-    simpleMap.forEach((tileType, imagePath) -> map.put(tileType,
-        loadImage("/textures/terrain/" + imagePath + ".png")));
+    simpleMap.forEach(
+        (tileType, imagePath) ->
+            map.put(tileType, loadImage("/textures/terrain/" + imagePath + ".png")));
     map.put(TILE_HOLE, holeImage);
     map.put(TILE_CAVE_WALL_ORE_IRON, createImageFromColor(new Color(0x9A4444)));
     map.put(TILE_CAVE_WALL_ORE_COPPER, createImageFromColor(new Color(0x61AF95)));
@@ -175,8 +204,9 @@ public class ImageManager {
     simpleMap.put(StructureConstants.FloorMaterial.STANDALONE, "Floor_Plan_dist");
 
     Map<StructureConstants.FloorMaterial, BufferedImage> map = new HashMap<>();
-    simpleMap.forEach((tileType, imagePath) -> map.put(tileType,
-        loadImage("/textures/house/" + imagePath + ".png")));
+    simpleMap.forEach(
+        (tileType, imagePath) ->
+            map.put(tileType, loadImage("/textures/house/" + imagePath + ".png")));
     return Collections.unmodifiableMap(map);
   }
 
@@ -191,8 +221,9 @@ public class ImageManager {
     simpleMap.put(BridgeConstants.BridgeMaterial.MARBLE, "Marble/bridgeTilingMarble");
 
     Map<BridgeConstants.BridgeMaterial, BufferedImage> map = new HashMap<>();
-    simpleMap.forEach((tileType, imagePath) -> map.put(tileType,
-        loadImage("/textures/Bridges/" + imagePath + ".png")));
+    simpleMap.forEach(
+        (tileType, imagePath) ->
+            map.put(tileType, loadImage("/textures/Bridges/" + imagePath + ".png")));
     return Collections.unmodifiableMap(map);
   }
 
@@ -228,10 +259,11 @@ public class ImageManager {
   }
 
   private static BufferedImage createImageFromColor(Color color) {
-    BufferedImage image = new BufferedImage(64, 64, BufferedImage.TYPE_INT_RGB);
+    BufferedImage image =
+        new BufferedImage(Constants.TILE_SIZE, Constants.TILE_SIZE, BufferedImage.TYPE_INT_RGB);
     Graphics2D gfx = image.createGraphics();
     gfx.setBackground(color);
-    gfx.clearRect(0, 0, 64, 64);
+    gfx.clearRect(0, 0, Constants.TILE_SIZE, Constants.TILE_SIZE);
     gfx.dispose();
 
     return image;
@@ -242,8 +274,9 @@ public class ImageManager {
 
     int attitude;
     try {
-      attitude = ReflectionUtil.getPrivateField(creature,
-          ReflectionUtil.getField(creature.getClass(), "attitude"));
+      attitude =
+          ReflectionUtil.getPrivateField(
+              creature, ReflectionUtil.getField(creature.getClass(), "attitude"));
     } catch (NoSuchFieldException | IllegalAccessException e) {
       throw new RuntimeException(e);
     }

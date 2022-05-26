@@ -1,5 +1,7 @@
 package dev.thource.wurmunlimited.clientmods.minimap.renderer.component;
 
+import static com.wurmonline.mesh.Tiles.Tile.TILE_ENCHANTED_TREE_OAK;
+import static com.wurmonline.mesh.Tiles.Tile.TILE_TREE_OAK;
 import static com.wurmonline.mesh.Tiles.TileRoadDirection.DIR_NE;
 import static com.wurmonline.mesh.Tiles.TileRoadDirection.DIR_NW;
 import static com.wurmonline.mesh.Tiles.TileRoadDirection.DIR_SE;
@@ -9,8 +11,10 @@ import com.wurmonline.client.game.NearTerrainDataBuffer;
 import com.wurmonline.client.game.TerrainChangeListener;
 import com.wurmonline.client.game.World;
 import com.wurmonline.mesh.Tiles;
+import dev.thource.wurmunlimited.clientmods.minimap.Constants;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.ImageManager;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.LayerRenderer;
+import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
 public class WorldTileRenderer extends TileRenderer implements TerrainChangeListener {
@@ -21,27 +25,35 @@ public class WorldTileRenderer extends TileRenderer implements TerrainChangeList
     ((NearTerrainDataBuffer) tileBuffer).addListener(this);
   }
 
-  public BufferedImage render(int tileX, int tileY) {
-    BufferedImage tileImage = super.render(tileX, tileY);
+  @Override
+  public RenderedTile render(int tileX, int tileY) {
     Tiles.Tile tileType = tileBuffer.getTileType(tileX, tileY);
+    if (tileType.isTree() || tileType.isBush()) {
+      tileType = tileType.isEnchanted() ? TILE_ENCHANTED_TREE_OAK : TILE_TREE_OAK;
+    }
 
+    BufferedImage tileImage =
+        ImageManager.tileImages.getOrDefault(tileType, ImageManager.missingImage);
     if (tileImage == ImageManager.missingImage) {
       System.out.println("Missing image for tile: " + tileType.getName());
     }
 
-    tileImage = renderRoad(tileImage, tileX, tileY);
-//    tileImage = renderWater(tileImage, tileX, tileY);
+    RenderedTile renderedTile = new RenderedTile(tileX, tileY);
+    Graphics2D graphics = renderedTile.getImage().createGraphics();
+    graphics.drawImage(tileImage, 0, 0, null);
+    graphics.dispose();
 
-    return tileImage;
+    renderRoad(renderedTile, tileX, tileY);
+    renderWaterAndGeometry(renderedTile, tileX, tileY);
+
+    return renderedTile;
   }
 
-  private BufferedImage renderRoad(BufferedImage originalImage, int tileX, int tileY) {
+  private void renderRoad(RenderedTile renderedTile, int tileX, int tileY) {
     Tiles.Tile tileType = tileBuffer.getTileType(tileX, tileY);
     if (!tileType.isRoad()) {
-      return originalImage;
+      return;
     }
-
-    BufferedImage tileImage = cloneImage(originalImage);
 
     NearTerrainDataBuffer nearTerrainBuffer = ((NearTerrainDataBuffer) tileBuffer);
     int roadDir = nearTerrainBuffer.getData(tileX, tileY) & 7;
@@ -57,52 +69,60 @@ public class WorldTileRenderer extends TileRenderer implements TerrainChangeList
     }
 
     if (roadDirection != Tiles.TileRoadDirection.DIR_STRAIGHT) {
-      tileImage = cloneImage(tileImage);
-
       BufferedImage northTileImage = null;
       BufferedImage eastTileImage = null;
       BufferedImage southTileImage = null;
       BufferedImage westTileImage = null;
       if (roadDirection == DIR_SE || roadDirection == DIR_SW) {
-        northTileImage = ImageManager.tileImages.getOrDefault(
-            nearTerrainBuffer.getSecondaryType(tileX, tileY - 1), ImageManager.missingImage);
+        northTileImage =
+            ImageManager.tileImages.getOrDefault(
+                nearTerrainBuffer.getSecondaryType(tileX, tileY - 1), ImageManager.missingImage);
       }
       if (roadDirection == DIR_NW || roadDirection == DIR_SW) {
-        eastTileImage = ImageManager.tileImages.getOrDefault(
-            nearTerrainBuffer.getSecondaryType(tileX + 1, tileY), ImageManager.missingImage);
+        eastTileImage =
+            ImageManager.tileImages.getOrDefault(
+                nearTerrainBuffer.getSecondaryType(tileX + 1, tileY), ImageManager.missingImage);
       }
       if (roadDirection == DIR_NE || roadDirection == DIR_NW) {
-        southTileImage = ImageManager.tileImages.getOrDefault(
-            nearTerrainBuffer.getSecondaryType(tileX, tileY + 1), ImageManager.missingImage);
+        southTileImage =
+            ImageManager.tileImages.getOrDefault(
+                nearTerrainBuffer.getSecondaryType(tileX, tileY + 1), ImageManager.missingImage);
       }
       if (roadDirection == DIR_SE || roadDirection == DIR_NE) {
-        westTileImage = ImageManager.tileImages.getOrDefault(
-            nearTerrainBuffer.getSecondaryType(tileX - 1, tileY), ImageManager.missingImage);
+        westTileImage =
+            ImageManager.tileImages.getOrDefault(
+                nearTerrainBuffer.getSecondaryType(tileX - 1, tileY), ImageManager.missingImage);
       }
 
-      for (int py = 0; py < 64; py++) {
-        for (int px = 0; px < 64; px++) {
-          if ((roadDirection == DIR_SE || roadDirection == DIR_SW) && py <= 31 && px - py >= 0
-              && px + py <= 63) {
-            tileImage.setRGB(px, py, northTileImage.getRGB(px, py));
+      for (int py = 0; py < Constants.TILE_SIZE; py++) {
+        for (int px = 0; px < Constants.TILE_SIZE; px++) {
+          if ((roadDirection == DIR_SE || roadDirection == DIR_SW)
+              && py <= Constants.TILE_SIZE / 2 - 1
+              && px - py >= 0
+              && px + py <= Constants.TILE_SIZE - 1) {
+            renderedTile.getImage().setRGB(px, py, northTileImage.getRGB(px, py));
           }
-          if ((roadDirection == DIR_NW || roadDirection == DIR_SW) && px >= 32
-              && py - (63 - px) >= 0 && py + (63 - px) <= 63) {
-            tileImage.setRGB(px, py, eastTileImage.getRGB(px, py));
+          if ((roadDirection == DIR_NW || roadDirection == DIR_SW)
+              && px >= Constants.TILE_SIZE / 2
+              && py - (Constants.TILE_SIZE - 1 - px) >= 0
+              && py + (Constants.TILE_SIZE - 1 - px) <= Constants.TILE_SIZE - 1) {
+            renderedTile.getImage().setRGB(px, py, eastTileImage.getRGB(px, py));
           }
-          if ((roadDirection == DIR_NE || roadDirection == DIR_NW) && py >= 32
-              && px - (63 - py) >= 0 && px + (63 - py) <= 63) {
-            tileImage.setRGB(px, py, southTileImage.getRGB(px, py));
+          if ((roadDirection == DIR_NE || roadDirection == DIR_NW)
+              && py >= Constants.TILE_SIZE / 2
+              && px - (Constants.TILE_SIZE - 1 - py) >= 0
+              && px + (Constants.TILE_SIZE - 1 - py) <= Constants.TILE_SIZE - 1) {
+            renderedTile.getImage().setRGB(px, py, southTileImage.getRGB(px, py));
           }
-          if ((roadDirection == DIR_NE || roadDirection == DIR_SE) && px <= 31 && py - px >= 0
-              && py + px <= 63) {
-            tileImage.setRGB(px, py, westTileImage.getRGB(px, py));
+          if ((roadDirection == DIR_NE || roadDirection == DIR_SE)
+              && px <= Constants.TILE_SIZE / 2 - 1
+              && py - px >= 0
+              && py + px <= Constants.TILE_SIZE - 1) {
+            renderedTile.getImage().setRGB(px, py, westTileImage.getRGB(px, py));
           }
         }
       }
     }
-
-    return tileImage;
   }
 
   @Override
@@ -116,13 +136,19 @@ public class WorldTileRenderer extends TileRenderer implements TerrainChangeList
   }
 
   @Override
-  public boolean isTileValid(int tileX, int tileY) {
-    return ((NearTerrainDataBuffer) tileBuffer).isValid(tileX * 4, tileY * 4);
+  protected float getHeight(int tileX, int tileY) {
+    return ((NearTerrainDataBuffer) tileBuffer).getHeight(tileX, tileY);
   }
 
   @Override
-  public void terrainUpdated(int startX, int startY, int endX, int endY, boolean heightsChanged,
-      boolean bigUpdate) {
-    layerRenderer.renderTiles(startX, startY, endX, endY);
+  public boolean isTileValid(int tileX, int tileY) {
+    return ((NearTerrainDataBuffer) tileBuffer).isValid(tileX * 4f, tileY * 4f);
+  }
+
+  @Override
+  public void terrainUpdated(
+      int startX, int startY, int endX, int endY, boolean heightsChanged, boolean bigUpdate) {
+    new Thread(() -> layerRenderer.renderTiles(startX - 1, startY - 1, endX + 1, endY + 1, true))
+        .start();
   }
 }
