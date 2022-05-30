@@ -29,15 +29,25 @@ public class RenderedFence extends RenderedStructure {
             horizontal ? PADDING : Constants.TILE_SIZE + PADDING,
             BufferedImage.TYPE_INT_ARGB);
     this.data = data;
-    fullRedraw();
+    fullRedraw(image);
   }
 
   @Override
-  protected void fullRedraw() {
+  public void render() {
+    // Fences can't change
+  }
+
+  @Override
+  protected void recalculateDimensions() {
+    // Fences are always 1x1
+  }
+
+  @Override
+  protected void fullRedraw(BufferedImage image) {
     Graphics2D graphics = image.createGraphics();
     graphics.setPaint(
         ImageManager.fenceColors.getOrDefault(data.getType().material, Color.MAGENTA));
-    if (data.isGate()) {
+    if (data.isGate() || data.getCollisionHeight() == 0f || data.getCollisionThickness() == 0f) {
       graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
     }
 

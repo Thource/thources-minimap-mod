@@ -15,7 +15,9 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.ListIterator;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 public class RenderedHouse extends RenderedStructure {
   //  private static final List<FloorType> TRANSPARENT_FLOOR_TYPES = List.of(FloorType.OPENING);
@@ -28,8 +30,8 @@ public class RenderedHouse extends RenderedStructure {
   private final List<HouseFloorData> houseFloors = new ArrayList<>();
   private final List<HouseWallData> houseWalls = new ArrayList<>();
   private final List<HouseRoofData> houseRoofs = new ArrayList<>();
-  private final Object imageLock = new Object();
   private int baseHeight = 999999;
+  private int levels = 1;
 
   public RenderedHouse(HouseData data) {
     id = data.getId();
@@ -58,14 +60,33 @@ public class RenderedHouse extends RenderedStructure {
   public void addHouseFloor(HouseFloorData houseFloor) {
     synchronized (imageLock) {
       houseFloors.add(houseFloor);
+      dirty = true;
 
       if (houseFloor.getHeightOffset() == 0 && baseHeight == 999999) {
         baseHeight = (int) (houseFloor.getHPos() * 10);
       }
+    }
+  }
 
-      if (!resize(houseFloor.getTileX(), houseFloor.getTileY(), houseFloor.getHeightOffset())) {
-        redrawLevel(houseFloor.getHeightOffset() / 30);
+  public void addHouseWall(HouseWallData houseWall) {
+    if (houseWall.getType() == StructureConstantsEnum.NO_WALL) {
+      return;
+    }
+
+    synchronized (imageLock) {
+      houseWalls.add(houseWall);
+      dirty = true;
+
+      if (houseWall.getHeightOffset() == 0 && baseHeight == 999999) {
+        baseHeight = (int) (houseWall.getHPos() * 10);
       }
+    }
+  }
+
+  public void addHouseRoof(HouseRoofData houseRoof) {
+    synchronized (imageLock) {
+      houseRoofs.add(houseRoof);
+      dirty = true;
     }
   }
 
@@ -96,29 +117,13 @@ public class RenderedHouse extends RenderedStructure {
         null);
   }
 
-  public void addHouseWall(HouseWallData houseWall) {
-    if (houseWall.getType() == StructureConstantsEnum.NO_WALL) {
-      return;
-    }
-
-    synchronized (imageLock) {
-      houseWalls.add(houseWall);
-
-      if (houseWall.getHeightOffset() == 0 && baseHeight == 999999) {
-        baseHeight = (int) (houseWall.getHPos() * 10);
-      }
-
-      if (!resize(houseWall.getTileX(), houseWall.getTileY(), houseWall.getHeightOffset())) {
-        redrawLevel(houseWall.getHeightOffset() / 30);
-      }
-    }
-  }
-
   private void drawHouseWall(HouseWallData houseWall, Graphics2D graphics) {
     graphics.setPaint(
         ImageManager.fenceColors.getOrDefault(houseWall.getType().material, Color.MAGENTA));
 
-    if (houseWall.isGate()) {
+    if (houseWall.isGate()
+        || houseWall.getCollisionHeight() == 0f
+        || houseWall.getCollisionThickness() == 0f) {
       graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
     }
 
@@ -128,15 +133,11 @@ public class RenderedHouse extends RenderedStructure {
         (houseWall.getTileY() - tileY) * Constants.TILE_SIZE,
         horizontal ? Constants.TILE_SIZE + PADDING : PADDING,
         horizontal ? PADDING : Constants.TILE_SIZE + PADDING);
-  }
 
-  public void addHouseRoof(HouseRoofData houseRoof) {
-    synchronized (imageLock) {
-      houseRoofs.add(houseRoof);
-
-      if (!resize(houseRoof.getTileX(), houseRoof.getTileY(), houseRoof.getHeightOffset())) {
-        redrawLevel(houseRoof.getHeightOffset() / 30);
-      }
+    if (houseWall.isGate()
+        || houseWall.getCollisionHeight() == 0f
+        || houseWall.getCollisionThickness() == 0f) {
+      graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
     }
   }
 
@@ -150,67 +151,61 @@ public class RenderedHouse extends RenderedStructure {
   }
 
   @Override
-  protected boolean resize(int newTileX, int newTileY, int heightOffset) {
-    if (newTileX < tileX) {
-      width += tileX - newTileX;
-      tileX = newTileX;
-    } else {
-      width = Math.max(width, newTileX - tileX + 1);
-    }
-
-    if (newTileY < tileY) {
-      length += tileY - newTileY;
-      tileY = newTileY;
-    } else {
-      length = Math.max(length, newTileY - tileY + 1);
-    }
-
-    boolean sizeChanged =
-        image.getWidth() != width * Constants.TILE_SIZE + PADDING
-            || image.getHeight() != length * Constants.TILE_SIZE + PADDING;
-    if (!sizeChanged) {
-      int newTopFloor = levelImages.size();
-      for (int l = levelImages.size(); l <= heightOffset / 30; l++) {
-        levelImages.add(
-            new BufferedImage(
-                width * Constants.TILE_SIZE + PADDING,
-                length * Constants.TILE_SIZE + PADDING,
-                BufferedImage.TYPE_INT_ARGB));
-      }
-
-      if (newTopFloor != levelImages.size()) {
-        redrawLevel(newTopFloor);
-      }
-
-      return false;
-    }
-
-    ListIterator<BufferedImage> iterator = levelImages.listIterator();
-    while (iterator.hasNext()) {
-      iterator.next();
-      iterator.set(
-          new BufferedImage(
-              width * Constants.TILE_SIZE + PADDING,
-              length * Constants.TILE_SIZE + PADDING,
-              BufferedImage.TYPE_INT_ARGB));
-    }
-
-    image =
-        new BufferedImage(
-            width * Constants.TILE_SIZE + PADDING,
-            length * Constants.TILE_SIZE + PADDING,
-            BufferedImage.TYPE_INT_ARGB);
-    fullRedraw();
-
-    return true;
+  protected boolean hasSizeChanged() {
+    return super.hasSizeChanged() || levelImages.size() != levels;
   }
 
   @Override
-  protected void fullRedraw() {
-    redrawLevel(0);
+  protected void fullRedraw(BufferedImage image) {
+    IntStream.range(0, levelImages.size()).forEach(this::redrawLevel);
+
+    redrawImage(image);
   }
 
-  private void redrawImage() {
+  @Override
+  protected BufferedImage resize() {
+    BufferedImage newImage = super.resize();
+    if (newImage == image) {
+      return newImage;
+    }
+
+    levelImages.clear();
+    for (int l = 0; l < levels; l++) {
+      levelImages.add(
+          new BufferedImage(
+              newImage.getWidth(), newImage.getHeight(), BufferedImage.TYPE_INT_ARGB));
+    }
+
+    return newImage;
+  }
+
+  @Override
+  protected void recalculateDimensions() {
+    tileX = 9999;
+    tileY = 9999;
+    baseHeight = 999999;
+    AtomicInteger maxTileX = new AtomicInteger(-1);
+    AtomicInteger maxTileY = new AtomicInteger(-1);
+    AtomicInteger maxHeight = new AtomicInteger(-1);
+
+    Stream.of(houseFloors.stream(), houseWalls.stream(), houseRoofs.stream())
+        .flatMap(s -> s)
+        .forEach(
+            data -> {
+              tileX = Math.min(tileX, data.getTileX());
+              tileY = Math.min(tileY, data.getTileY());
+              baseHeight = Math.min((int) (data.getHPos() * 10), baseHeight);
+              maxTileX.set(Math.max(maxTileX.get(), data.getTileX()));
+              maxTileY.set(Math.max(maxTileY.get(), data.getTileY()));
+              maxHeight.set(Math.max(maxHeight.get(), (int) (data.getHPos() * 10)));
+            });
+
+    width = maxTileX.get() - tileX + 1;
+    length = maxTileY.get() - tileY + 1;
+    levels = ((maxHeight.get() - baseHeight) / 30) + 1;
+  }
+
+  private void redrawImage(BufferedImage image) {
     Graphics2D graphics = image.createGraphics();
     graphics.setBackground(new Color(0, 0, 0, 0));
     graphics.clearRect(0, 0, image.getWidth(), image.getHeight());
@@ -218,22 +213,8 @@ public class RenderedHouse extends RenderedStructure {
     graphics.dispose();
   }
 
-  private void redrawLevel(int floor) {
-    redrawLevel(floor, true);
-  }
-
-  private void redrawLevel(int level, boolean redrawHigherFloors) {
+  private void redrawLevel(int level) {
     if (level >= levelImages.size()) {
-      return;
-    }
-
-    if (redrawHigherFloors) {
-      for (int l = level; l < levelImages.size(); l++) {
-        redrawLevel(l, false);
-      }
-
-      redrawImage();
-
       return;
     }
 

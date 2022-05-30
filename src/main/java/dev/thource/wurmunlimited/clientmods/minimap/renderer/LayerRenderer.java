@@ -24,6 +24,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import javax.imageio.ImageIO;
 import lombok.Getter;
 import org.gotti.wurmunlimited.modloader.ReflectionUtil;
@@ -47,10 +50,24 @@ public abstract class LayerRenderer {
   @Getter protected int centerX = -1000;
   @Getter protected int centerY = -1000;
   protected TileRenderer tileRenderer;
+  ScheduledExecutorService renderExecutor = Executors.newSingleThreadScheduledExecutor();
 
   LayerRenderer(World world, int layerId) {
     this.world = world;
     this.layerId = layerId;
+
+    renderExecutor.scheduleAtFixedRate(
+        () -> {
+          synchronized (bridges) {
+            bridges.values().forEach(RenderedBridge::render);
+          }
+          synchronized (houses) {
+            houses.values().forEach(RenderedHouse::render);
+          }
+        },
+        0,
+        100,
+        TimeUnit.MILLISECONDS);
   }
 
   public BufferedImage render() {
@@ -153,65 +170,79 @@ public abstract class LayerRenderer {
       return;
     }
 
+    System.out.println("addStructure: " + structureData.getClass().getName());
     if (structureData instanceof BridgeData && !bridges.containsKey(structureData.getId())) {
       RenderedBridge bridge = new RenderedBridge((BridgeData) structureData);
 
-      bridges.put(structureData.getId(), bridge);
+      synchronized (bridges) {
+        bridges.put(structureData.getId(), bridge);
+      }
       return;
     } else if (structureData instanceof HouseData && !houses.containsKey(structureData.getId())) {
       RenderedHouse house = new RenderedHouse((HouseData) structureData);
 
-      houses.put(structureData.getId(), house);
+      synchronized (houses) {
+        houses.put(structureData.getId(), house);
+      }
       return;
     }
 
     new Thread(
             () -> {
               if (structureData instanceof BridgePartData) {
-                RenderedBridge bridge = bridges.get(((BridgePartData) structureData).getBridgeId());
-                if (bridge != null) {
-                  bridge.addBridgePart((BridgePartData) structureData);
+                synchronized (bridges) {
+                  RenderedBridge bridge =
+                      bridges.get(((BridgePartData) structureData).getBridgeId());
+                  if (bridge != null) {
+                    bridge.addBridgePart((BridgePartData) structureData);
+                  }
                 }
               } else if (structureData instanceof FenceData) {
-                if (!fences.containsKey(structureData.getId())) {
-                  RenderedFence fence = new RenderedFence((FenceData) structureData);
+                synchronized (fences) {
+                  if (!fences.containsKey(structureData.getId())) {
+                    RenderedFence fence = new RenderedFence((FenceData) structureData);
 
-                  synchronized (fences) {
                     fences.put(structureData.getId(), fence);
                   }
                 }
               } else if (structureData instanceof HouseWallData) {
                 try {
-                  HouseData houseData =
-                      ReflectionUtil.getPrivateField(
-                          structureData, ReflectionUtil.getField(HouseWallData.class, "house"));
-                  RenderedHouse house = houses.get(houseData.getId());
-                  if (house != null) {
-                    house.addHouseWall((HouseWallData) structureData);
+                  synchronized (houses) {
+                    HouseData houseData =
+                        ReflectionUtil.getPrivateField(
+                            structureData, ReflectionUtil.getField(HouseWallData.class, "house"));
+                    RenderedHouse house = houses.get(houseData.getId());
+                    if (house != null) {
+                      house.addHouseWall((HouseWallData) structureData);
+                    }
                   }
                 } catch (IllegalAccessException | NoSuchFieldException e) {
                   throw new RuntimeException(e);
                 }
               } else if (structureData instanceof HouseRoofData) {
                 try {
-                  HouseData houseData =
-                      ReflectionUtil.getPrivateField(
-                          structureData, ReflectionUtil.getField(HouseRoofData.class, "house"));
-                  RenderedHouse house = houses.get(houseData.getId());
-                  if (house != null) {
-                    house.addHouseRoof((HouseRoofData) structureData);
+                  synchronized (houses) {
+                    HouseData houseData =
+                        ReflectionUtil.getPrivateField(
+                            structureData, ReflectionUtil.getField(HouseRoofData.class, "house"));
+                    RenderedHouse house = houses.get(houseData.getId());
+                    if (house != null) {
+                      house.addHouseRoof((HouseRoofData) structureData);
+                    }
                   }
                 } catch (IllegalAccessException | NoSuchFieldException e) {
                   throw new RuntimeException(e);
                 }
               } else if (structureData instanceof HouseFloorData) {
                 try {
-                  HouseData houseData =
-                      ReflectionUtil.getPrivateField(
-                          structureData, ReflectionUtil.getField(HouseFloorData.class, "house"));
-                  RenderedHouse house = houses.get(houseData.getId());
-                  if (house != null) {
-                    house.addHouseFloor((HouseFloorData) structureData);
+                  synchronized (houses) {
+                    HouseData houseData =
+                        ReflectionUtil.getPrivateField(
+                            structureData, ReflectionUtil.getField(HouseFloorData.class, "house"));
+                    RenderedHouse house = houses.get(houseData.getId());
+                    if (house != null) {
+                      house.addHouseFloor((HouseFloorData) structureData);
+                    }
                   }
                 } catch (IllegalAccessException | NoSuchFieldException e) {
                   throw new RuntimeException(e);
@@ -234,12 +265,34 @@ public abstract class LayerRenderer {
       return;
     }
 
+    System.out.println("removeStructure: " + structureData.getClass().getName());
     if (structureData instanceof BridgeData) {
-      bridges.remove(structureData.getId());
+      synchronized (bridges) {
+        bridges.remove(structureData.getId());
+      }
+    } else if (structureData instanceof BridgePartData) {
+      synchronized (bridges) {
+        RenderedBridge bridge = bridges.get(((BridgePartData) structureData).getBridgeId());
+        if (bridge != null) {
+          bridge.removeBridgePart((BridgePartData) structureData);
+        }
+      }
     } else if (structureData instanceof FenceData) {
-      fences.remove(structureData.getId());
+      synchronized (fences) {
+        fences.remove(structureData.getId());
+      }
     } else if (structureData instanceof HouseData) {
-      houses.remove(structureData.getId());
+      synchronized (houses) {
+        houses.remove(structureData.getId());
+      }
+    } else {
+      System.out.println(
+          "NOT HANDLED: "
+              + structureData.getClass().getName()
+              + ", tileX: "
+              + structureData.getTileX()
+              + ", tileY: "
+              + structureData.getTileY());
     }
   }
 }

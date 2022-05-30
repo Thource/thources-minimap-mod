@@ -2,15 +2,16 @@ package dev.thource.wurmunlimited.clientmods.minimap.renderer.component;
 
 import com.wurmonline.client.renderer.structures.BridgeData;
 import com.wurmonline.client.renderer.structures.BridgePartData;
+import com.wurmonline.shared.constants.BridgeConstants.BridgeState;
 import dev.thource.wurmunlimited.clientmods.minimap.Constants;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.ImageManager;
+import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import lombok.Getter;
 
 public class RenderedBridge extends RenderedStructure {
   static {
@@ -18,7 +19,6 @@ public class RenderedBridge extends RenderedStructure {
   }
 
   private final List<BridgePartData> bridgeParts = new ArrayList<>();
-  private final Object imageLock = new Object();
   private boolean horizontal;
 
   public RenderedBridge(BridgeData data) {
@@ -40,16 +40,23 @@ public class RenderedBridge extends RenderedStructure {
   public void addBridgePart(BridgePartData bridgePart) {
     synchronized (imageLock) {
       bridgeParts.add(bridgePart);
+      dirty = true;
+    }
+  }
 
-      if (!resize(bridgePart.getTileX(), bridgePart.getTileY(), bridgePart.getHeightOffset())) {
-        drawBridgePart(bridgePart);
-      }
+  public void removeBridgePart(BridgePartData bridgePart) {
+    synchronized (imageLock) {
+      bridgeParts.remove(bridgePart);
+      dirty = true;
     }
   }
 
   @Override
-  protected void fullRedraw() {
+  protected void fullRedraw(BufferedImage image) {
     Graphics2D graphics = image.createGraphics();
+
+    graphics.setBackground(new Color(0, 0, 0, 0));
+    graphics.clearRect(0, 0, image.getWidth(), image.getHeight());
 
     for (int i = 0; i < PADDING; i++) {
       graphics.setPaint(new Color(0, 0, 0, (0.5f / PADDING) * (PADDING - i)));
@@ -69,9 +76,32 @@ public class RenderedBridge extends RenderedStructure {
     graphics.dispose();
   }
 
+  @Override
+  protected void recalculateDimensions() {
+    tileX = 9999;
+    tileY = 9999;
+    int maxTileX = -1;
+    int maxTileY = -1;
+
+    for (BridgePartData bridgePart : bridgeParts) {
+      tileX = Math.min(tileX, bridgePart.getTileX());
+      tileY = Math.min(tileY, bridgePart.getTileY());
+      maxTileX = Math.max(maxTileX, bridgePart.getTileX());
+      maxTileY = Math.max(maxTileY, bridgePart.getTileY());
+      horizontal = bridgePart.getDir() / 2 % 2 == 1;
+    }
+
+    width = maxTileX - tileX + 1;
+    length = maxTileY - tileY + 1;
+  }
+
   private void drawBridgePart(BridgePartData bridgePart, Graphics2D graphics) {
     BufferedImage bridgePartImage =
         ImageManager.bridgeImages.getOrDefault(bridgePart.getMaterial(), ImageManager.missingImage);
+
+    if (bridgePart.getState() != BridgeState.COMPLETED) {
+      graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
+    }
 
     graphics.drawImage(
         bridgePartImage,
@@ -79,12 +109,8 @@ public class RenderedBridge extends RenderedStructure {
         (bridgePart.getTileY() - tileY) * Constants.TILE_SIZE,
         null);
 
-    horizontal = bridgePart.getDir() / 2 % 2 == 1;
-  }
-
-  private void drawBridgePart(BridgePartData bridgePart) {
-    Graphics2D graphics = image.createGraphics();
-    drawBridgePart(bridgePart, graphics);
-    graphics.dispose();
+    if (bridgePart.getState() != BridgeState.COMPLETED) {
+      graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
+    }
   }
 }
