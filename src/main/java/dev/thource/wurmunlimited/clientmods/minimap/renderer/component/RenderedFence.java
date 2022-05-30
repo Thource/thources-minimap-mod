@@ -9,9 +9,13 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import lombok.Getter;
 
-public class RenderedFence extends RenderedStructure<FenceData> {
-  public static final int FENCE_THICKNESS = (int) Math.max(Constants.TILE_SIZE / 4f, 1);
+public class RenderedFence extends RenderedStructure {
+  static {
+    PADDING = (int) Math.max(Constants.TILE_SIZE / 4f, 1);
+  }
+
   @Getter private final boolean horizontal;
+  private final FenceData data;
 
   public RenderedFence(FenceData data) {
     id = data.getId();
@@ -21,13 +25,15 @@ public class RenderedFence extends RenderedStructure<FenceData> {
     horizontal = data.getTileXEnd() != tileX;
     image =
         new BufferedImage(
-            horizontal ? Constants.TILE_SIZE : FENCE_THICKNESS,
-            horizontal ? FENCE_THICKNESS : Constants.TILE_SIZE,
+            horizontal ? Constants.TILE_SIZE + PADDING : PADDING,
+            horizontal ? PADDING : Constants.TILE_SIZE + PADDING,
             BufferedImage.TYPE_INT_ARGB);
-    draw(data);
+    this.data = data;
+    fullRedraw();
   }
 
-  private void draw(FenceData data) {
+  @Override
+  protected void fullRedraw() {
     Graphics2D graphics = image.createGraphics();
     graphics.setPaint(
         ImageManager.fenceColors.getOrDefault(data.getType().material, Color.MAGENTA));

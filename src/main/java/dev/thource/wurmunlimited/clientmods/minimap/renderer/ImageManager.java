@@ -39,6 +39,7 @@ import static com.wurmonline.mesh.Tiles.Tile.TILE_MOSS;
 import static com.wurmonline.mesh.Tiles.Tile.TILE_MYCELIUM;
 import static com.wurmonline.mesh.Tiles.Tile.TILE_PEAT;
 import static com.wurmonline.mesh.Tiles.Tile.TILE_PLANKS;
+import static com.wurmonline.mesh.Tiles.Tile.TILE_PLANKS_TARRED;
 import static com.wurmonline.mesh.Tiles.Tile.TILE_POTTERY_BRICKS;
 import static com.wurmonline.mesh.Tiles.Tile.TILE_REED;
 import static com.wurmonline.mesh.Tiles.Tile.TILE_ROCK;
@@ -70,6 +71,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import javax.imageio.ImageIO;
 import org.gotti.wurmunlimited.modloader.ReflectionUtil;
 
@@ -153,6 +155,7 @@ public class ImageManager {
     simpleMap.put(TILE_MYCELIUM, "mycelium");
     simpleMap.put(TILE_PEAT, "peat");
     simpleMap.put(TILE_PLANKS, "planks");
+    simpleMap.put(TILE_PLANKS_TARRED, "planks");
     simpleMap.put(TILE_KELP, "dirt");
     simpleMap.put(TILE_POTTERY_BRICKS, "potterybrickpaving");
     simpleMap.put(TILE_REED, "reed");
@@ -269,8 +272,11 @@ public class ImageManager {
     return image;
   }
 
-  public static BufferedImage getIconForCreature(CreatureCellRenderable creature) {
+  public static Optional<BufferedImage> getIconForCreature(CreatureCellRenderable creature) {
     // TODO: check if creature is a cart, chair, etc and return null
+    if (creature.isItem()) {
+      return Optional.empty();
+    }
 
     int attitude;
     try {
@@ -306,17 +312,17 @@ public class ImageManager {
     if (isPlayer) {
       switch (status) {
         case "neutral":
-          return neutralPlayerIcon;
+          return Optional.of(neutralPlayerIcon);
         case "friend":
-          return friendPlayerIcon;
+          return Optional.of(friendPlayerIcon);
         case "hostile":
-          return hostilePlayerIcon;
+          return Optional.of(hostilePlayerIcon);
         case "ally":
-          return allyPlayerIcon;
+          return Optional.of(allyPlayerIcon);
         case "gm":
-          return gmPlayerIcon;
+          return Optional.of(gmPlayerIcon);
         case "dev":
-          return devPlayerIcon;
+          return Optional.of(devPlayerIcon);
       }
     }
 
@@ -324,13 +330,13 @@ public class ImageManager {
       case "neutral":
       case "gm":
       case "dev":
-        return neutralIcon;
+        return Optional.of(neutralIcon);
       case "friend":
-        return friendIcon;
+        return Optional.of(friendIcon);
       case "hostile":
-        return hostileIcon;
+        return Optional.of(hostileIcon);
       case "ally":
-        return allyIcon;
+        return Optional.of(allyIcon);
     }
 
     // should never be hit
