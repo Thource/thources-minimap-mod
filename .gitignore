@@ -30,5 +30,4 @@ gradle-app.setting
 .gradletasknamecache
 
 # IntelliJ
-**/.idea/workspace.xml
-**/.idea/tasks.xml
+.idea

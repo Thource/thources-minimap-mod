@@ -24,3 +24,9 @@ When ingame, open the console with F1 and type any of the following commands:
 | `get-zoom`           | Gets the current zoom               |
 | `set-xoffset NUMBER` | Sets xOffset to the specified value |
 | `get-xoffset`        | Gets the current xOffset            |
+
+
+
+Owed deed renders
+    Dweia
+    Degu
