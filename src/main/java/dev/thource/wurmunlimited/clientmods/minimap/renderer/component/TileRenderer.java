@@ -1,32 +1,103 @@
 package dev.thource.wurmunlimited.clientmods.minimap.renderer.component;
 
+import static com.wurmonline.client.renderer.cell.CellRenderable.world;
+import static com.wurmonline.mesh.Tiles.Tile.TILE_ENCHANTED_TREE_OAK;
+import static com.wurmonline.mesh.Tiles.Tile.TILE_TREE_OAK;
+
 import com.wurmonline.client.game.IDataBuffer;
+import com.wurmonline.client.game.PlayerObj;
+import com.wurmonline.client.game.PlayerPosition;
 import com.wurmonline.client.game.TerrainDataInformationProvider;
-import com.wurmonline.client.game.World;
+import com.wurmonline.mesh.Tiles;
 import dev.thource.wurmunlimited.clientmods.minimap.Constants;
+import dev.thource.wurmunlimited.clientmods.minimap.Vector2i;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.ImageManager;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.LayerRenderer;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.topology.ShadedRelief;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.util.HashMap;
+import java.util.Map;
+import lombok.Getter;
 
 public abstract class TileRenderer {
 
   protected final LayerRenderer layerRenderer;
+  protected final Map<Vector2i, Boolean> dirtyTiles = new HashMap<>();
+  protected final Object imageLock = new Object();
+  private final int bufferSize = 302;
   public TerrainDataInformationProvider tileBuffer;
 
-  public TileRenderer(World world, LayerRenderer layerRenderer) {
+  @Getter
+  protected BufferedImage image =
+      new BufferedImage(
+          bufferSize * Constants.TILE_SIZE,
+          bufferSize * Constants.TILE_SIZE,
+          BufferedImage.TYPE_INT_RGB);
+
+  protected BufferedImage transferImage =
+      new BufferedImage(image.getWidth(), image.getHeight(), image.getType());
+  @Getter protected int centerX = -1000;
+  @Getter protected int centerY = -1000;
+
+  public TileRenderer(LayerRenderer layerRenderer) {
     this.layerRenderer = layerRenderer;
   }
 
-  public abstract RenderedTile render(int tileX, int tileY);
+  // returns true if the image was re-centered
+  private boolean recenter() {
+    PlayerObj player = world.getPlayer();
+    PlayerPosition pos = player.getPos();
+    int tileX = pos.getTileX();
+    int tileY = pos.getTileY();
+    if (centerX == tileX && centerY == tileY) {
+      return false;
+    }
+
+    int shiftX = tileX - centerX;
+    int shiftY = tileY - centerY;
+
+    Graphics2D transferImageGfx = transferImage.createGraphics();
+    transferImageGfx.drawImage(
+        image, -shiftX * Constants.TILE_SIZE, -shiftY * Constants.TILE_SIZE, null);
+    transferImageGfx.dispose();
+
+    BufferedImage tmp = image;
+    image = transferImage;
+    transferImage = tmp;
+    centerX = tileX;
+    centerY = tileY;
+
+    transferImageGfx = transferImage.createGraphics();
+    transferImageGfx.clearRect(0, 0, transferImage.getWidth(), transferImage.getHeight());
+    transferImageGfx.dispose();
+    return true;
+  }
+
+  private void setDirty(int tileX, int tileY) {
+    dirtyTiles.put(new Vector2i(tileX, tileY), true);
+  }
+
+  public void setDirty(int startX, int startY, int endX, int endY) {
+    synchronized (dirtyTiles) {
+      for (int x = startX; x < endX; x++) {
+        for (int y = startY; y < endY; y++) {
+          // check that the tile is loaded, this is required because some tiles can be loaded before
+          // the minimap is loaded
+          if (isTileValid(x, y)) {
+            setDirty(x, y);
+          }
+        }
+      }
+    }
+  }
 
   protected abstract float getWaterHeight(int tileX, int tileY);
 
   protected abstract float getInterpolatedHeight(float worldX, float worldY);
 
-  protected void renderWaterAndGeometry(RenderedTile renderedTile, int tileX, int tileY) {
+  protected void drawWaterAndGeometry(RenderedTile renderedTile, int tileX, int tileY) {
     float waterHeight = getWaterHeight(tileX, tileY);
     float nwCorner = getHeight(tileX, tileY);
     float neCorner = getHeight(tileX + 1, tileY);
@@ -93,20 +164,6 @@ public abstract class TileRenderer {
     }
   }
 
-  private float getAveragePointHeight(
-      float worldX, float worldY, int px, int py, float dirX, float dirY, int pixels) {
-    float average = 0;
-
-    for (int i = 0; i < pixels; i++) {
-      average +=
-          getInterpolatedHeight(
-              worldX + (px * (1f / Constants.TILE_SIZE)) + (dirX * (1f / Constants.TILE_SIZE) * i),
-              worldY + (py * (1f / Constants.TILE_SIZE)) + (dirY * (1f / Constants.TILE_SIZE) * i));
-    }
-
-    return average / pixels;
-  }
-
   private void renderHeight(int px, int py, RenderedTile renderedTile, float worldX, float worldY) {
     Color heightColor =
         ShadedRelief.getColor(
@@ -120,54 +177,63 @@ public abstract class TileRenderer {
             (int) (currentColor.getBlue() * (1 - alpha) + heightColor.getBlue() * alpha));
 
     renderedTile.getImage().setRGB(px, py, newColor.getRGB());
-
-    //    float southPointHeight = getAveragePointHeight(worldX, worldY, px, py, 0, 1,
-    // Math.max(Constants.TILE_SIZE / 4, 1));
-    //    float eastPointHeight = getAveragePointHeight(worldX, worldY, px, py, 1, 0,
-    // Math.max(Constants.TILE_SIZE / 4, 1));
-    //    if (Math.sqrt(southPointHeight * eastPointHeight) > pointHeight) {
-    //      float factor =
-    //          (float) Math.min(
-    //              (Math.sqrt(southPointHeight * eastPointHeight) - pointHeight) / 2f,
-    //              1f);
-    //      Color currentColor = new Color(tileImage.getRGB(px, py));
-    //      Color newColor = new Color((int) (currentColor.getRed() * (1 - factor) + 255 * factor),
-    //          (int) (currentColor.getGreen() * (1 - factor) + 255 * factor),
-    //          (int) (currentColor.getBlue() * (1 - factor) + 255 * factor));
-    //
-    //      tileImage.setRGB(px, py, newColor.getRGB());
-    //    } else {
-    //      float northPointHeight = getAveragePointHeight(worldX, worldY, px, py, 0, -1,
-    // Math.max(Constants.TILE_SIZE / 4, 1));
-    //      float westPointHeight = getAveragePointHeight(worldX, worldY, px, py, -1, 0,
-    // Math.max(Constants.TILE_SIZE / 4, 1));
-    //      if (Math.sqrt(northPointHeight * westPointHeight) > pointHeight) {
-    //        float factor =
-    //            (float) Math.min(
-    //                (Math.sqrt(northPointHeight * westPointHeight) - pointHeight)
-    //                    / 2f,
-    //                1f);
-    //        Color currentColor = new Color(tileImage.getRGB(px, py));
-    //        Color newColor = new Color((int) (currentColor.getRed() * (1 - factor)),
-    //            (int) (currentColor.getGreen() * (1 - factor)),
-    //            (int) (currentColor.getBlue() * (1 - factor)));
-    //
-    //        tileImage.setRGB(px, py, newColor.getRGB());
-    //      }
-    //    }
   }
 
   protected abstract float getHeight(int tileX, int tileY);
 
-  protected BufferedImage cloneImage(BufferedImage original) {
-    BufferedImage clone =
-        new BufferedImage(original.getWidth(), original.getHeight(), original.getType());
-    Graphics2D gfx = clone.createGraphics();
-    gfx.drawImage(original, null, 0, 0);
-    gfx.dispose();
+  public abstract boolean isTileValid(int tileX, int tileY);
 
-    return clone;
+  private void drawDirtyTiles() {
+    synchronized (dirtyTiles) {
+      Graphics2D graphics = image.createGraphics();
+      dirtyTiles
+          .keySet()
+          .forEach(
+              pos -> {
+                RenderedTile tile = renderTile(pos.x, pos.y);
+                int canvasX = (tile.getX() - centerX) + (bufferSize / 2);
+                int canvasY = (tile.getY() - centerY) + (bufferSize / 2);
+                graphics.drawImage(
+                    tile.getImage(),
+                    canvasX * Constants.TILE_SIZE,
+                    canvasY * Constants.TILE_SIZE,
+                    null);
+              });
+      graphics.dispose();
+      dirtyTiles.clear();
+    }
   }
 
-  public abstract boolean isTileValid(int tileX, int tileY);
+  protected RenderedTile renderTile(int x, int y) {
+    Tiles.Tile tileType = tileBuffer.getTileType(x, y);
+
+    if (tileType.isTree() || tileType.isBush()) {
+      tileType = tileType.isEnchanted() ? TILE_ENCHANTED_TREE_OAK : TILE_TREE_OAK;
+    }
+
+    BufferedImage tileImage =
+        ImageManager.tileImages.getOrDefault(tileType, ImageManager.missingImage);
+
+    if (tileImage == ImageManager.missingImage && tileType.isSolidCave()) {
+      tileImage = ImageManager.holeImage;
+    }
+
+    if (tileImage == ImageManager.missingImage) {
+      System.out.println("Missing image for tile: " + tileType.getName());
+    }
+
+    RenderedTile renderedTile = new RenderedTile(x, y);
+    Graphics2D graphics = renderedTile.getImage().createGraphics();
+    graphics.drawImage(tileImage, 0, 0, null);
+    graphics.dispose();
+
+    return renderedTile;
+  }
+
+  public void render() {
+    synchronized (imageLock) {
+      recenter();
+      drawDirtyTiles();
+    }
+  }
 }

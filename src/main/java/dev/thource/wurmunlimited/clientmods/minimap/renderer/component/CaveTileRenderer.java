@@ -1,46 +1,26 @@
 package dev.thource.wurmunlimited.clientmods.minimap.renderer.component;
 
-import static com.wurmonline.mesh.Tiles.Tile.TILE_ENCHANTED_TREE_OAK;
-import static com.wurmonline.mesh.Tiles.Tile.TILE_TREE_OAK;
-
 import com.wurmonline.client.game.CaveDataBuffer;
 import com.wurmonline.client.game.World;
 import com.wurmonline.client.renderer.cave.CaveBufferChangeListener;
 import com.wurmonline.mesh.Tiles;
-import dev.thource.wurmunlimited.clientmods.minimap.renderer.ImageManager;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.LayerRenderer;
-import java.awt.Graphics2D;
-import java.awt.image.BufferedImage;
 
 public class CaveTileRenderer extends TileRenderer implements CaveBufferChangeListener {
 
   public CaveTileRenderer(World world, LayerRenderer layerRenderer) {
-    super(world, layerRenderer);
+    super(layerRenderer);
     tileBuffer = world.getCaveBuffer();
     ((CaveDataBuffer) tileBuffer).addCaveBufferListener(this);
   }
 
   @Override
-  public RenderedTile render(int tileX, int tileY) {
+  public RenderedTile renderTile(int tileX, int tileY) {
+    RenderedTile renderedTile = super.renderTile(tileX, tileY);
+
     Tiles.Tile tileType = tileBuffer.getTileType(tileX, tileY);
-
-    BufferedImage tileImage =
-        ImageManager.tileImages.getOrDefault(tileType, ImageManager.missingImage);
-    if (tileImage == ImageManager.missingImage && tileType.isSolidCave()) {
-      tileImage = ImageManager.holeImage;
-    }
-
-    if (tileImage == ImageManager.missingImage) {
-      System.out.println("Missing image for tile: " + tileType.getName());
-    }
-
-    RenderedTile renderedTile = new RenderedTile(tileX, tileY);
-    Graphics2D graphics = renderedTile.getImage().createGraphics();
-    graphics.drawImage(tileImage, 0, 0, null);
-    graphics.dispose();
-
     if (!tileType.isSolidCave()) {
-      renderWaterAndGeometry(renderedTile, tileX, tileY);
+      drawWaterAndGeometry(renderedTile, tileX, tileY);
     }
 
     return renderedTile;
@@ -69,7 +49,6 @@ public class CaveTileRenderer extends TileRenderer implements CaveBufferChangeLi
 
   @Override
   public void caveChanged(int startX, int startY, int endX, int endY, boolean heightsChanged) {
-    new Thread(() -> layerRenderer.renderTiles(startX - 1, startY - 1, endX + 1, endY + 1, true))
-        .start();
+    new Thread(() -> setDirty(startX - 1, startY - 1, endX + 1, endY + 1)).start();
   }
 }

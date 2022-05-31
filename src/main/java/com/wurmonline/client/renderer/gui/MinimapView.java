@@ -81,10 +81,6 @@ public class MinimapView extends FlexComponent {
     System.out.println("wheeled, new zoom: " + zoomLevel);
   }
 
-  public void fullRedraw() {
-    new Thread(() -> worldLayerRenderer.render(true)).start();
-  }
-
   protected void renderComponent(Queue queue, float alpha) {
     super.renderComponent(queue, alpha);
 
@@ -113,10 +109,11 @@ public class MinimapView extends FlexComponent {
     }
     LayerRenderer layerRenderer =
         world.getPlayerLayer() == -1 ? caveLayerRenderer : worldLayerRenderer;
-    BufferedImage layerImage = layerRenderer.render();
+    BufferedImage layerImage = layerRenderer.getTileRenderer().getImage();
     Vector2f layerPos =
         worldPosToPixelPos(
-            (layerRenderer.getCenterX() - 151) * 4f, (layerRenderer.getCenterY() - 151) * 4f);
+            (layerRenderer.getTileRenderer().getCenterX() - 151) * 4f,
+            (layerRenderer.getTileRenderer().getCenterY() - 151) * 4f);
     framedGfx.drawImage(
         layerImage,
         (int) layerPos.x + 128,
@@ -267,7 +264,7 @@ public class MinimapView extends FlexComponent {
               File outputFile =
                   new File("tests/" + System.currentTimeMillis() + "-world-render.png");
               try {
-                ImageIO.write(worldLayerRenderer.render(), "png", outputFile);
+                ImageIO.write(worldLayerRenderer.getTileRenderer().getImage(), "png", outputFile);
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }
@@ -279,7 +276,7 @@ public class MinimapView extends FlexComponent {
               File outputFile =
                   new File("tests/" + System.currentTimeMillis() + "-cave-render.png");
               try {
-                ImageIO.write(caveLayerRenderer.render(), "png", outputFile);
+                ImageIO.write(caveLayerRenderer.getTileRenderer().getImage(), "png", outputFile);
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }

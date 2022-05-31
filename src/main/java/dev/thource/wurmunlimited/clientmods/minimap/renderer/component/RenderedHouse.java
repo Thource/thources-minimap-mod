@@ -32,8 +32,10 @@ public class RenderedHouse extends RenderedStructure {
   private final List<HouseRoofData> houseRoofs = new ArrayList<>();
   private int baseHeight = 999999;
   private int levels = 1;
+  private HouseData data;
 
   public RenderedHouse(HouseData data) {
+    this.data = data;
     id = data.getId();
 
     // These are the wrong way around on purpose, it's how the data comes through
@@ -86,6 +88,27 @@ public class RenderedHouse extends RenderedStructure {
   public void addHouseRoof(HouseRoofData houseRoof) {
     synchronized (imageLock) {
       houseRoofs.add(houseRoof);
+      dirty = true;
+    }
+  }
+
+  public void removeHouseFloor(HouseFloorData houseFloor) {
+    synchronized (imageLock) {
+      houseFloors.remove(houseFloor);
+      dirty = true;
+    }
+  }
+
+  public void removeHouseWall(HouseWallData houseWall) {
+    synchronized (imageLock) {
+      houseWalls.remove(houseWall);
+      dirty = true;
+    }
+  }
+
+  public void removeHouseRoof(HouseRoofData houseRoof) {
+    synchronized (imageLock) {
+      houseRoofs.remove(houseRoof);
       dirty = true;
     }
   }
@@ -200,9 +223,9 @@ public class RenderedHouse extends RenderedStructure {
               maxHeight.set(Math.max(maxHeight.get(), (int) (data.getHPos() * 10)));
             });
 
-    width = maxTileX.get() - tileX + 1;
-    length = maxTileY.get() - tileY + 1;
-    levels = ((maxHeight.get() - baseHeight) / 30) + 1;
+    width = Math.max(maxTileX.get() - tileX + 1, 1);
+    length = Math.max(maxTileY.get() - tileY + 1, 1);
+    levels = Math.max(((maxHeight.get() - baseHeight) / 30) + 1, 1);
   }
 
   private void redrawImage(BufferedImage image) {

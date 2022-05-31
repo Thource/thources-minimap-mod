@@ -91,8 +91,8 @@ public class RenderedBridge extends RenderedStructure {
       horizontal = bridgePart.getDir() / 2 % 2 == 1;
     }
 
-    width = maxTileX - tileX + 1;
-    length = maxTileY - tileY + 1;
+    width = Math.max(maxTileX - tileX + 1, 1);
+    length = Math.max(maxTileY - tileY + 1, 1);
   }
 
   private void drawBridgePart(BridgePartData bridgePart, Graphics2D graphics) {

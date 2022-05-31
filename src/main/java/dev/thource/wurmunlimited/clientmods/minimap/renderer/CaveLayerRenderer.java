@@ -6,8 +6,7 @@ import dev.thource.wurmunlimited.clientmods.minimap.renderer.component.CaveTileR
 public class CaveLayerRenderer extends LayerRenderer {
 
   public CaveLayerRenderer(World world) {
-    super(world, -1);
+    super(-1);
     tileRenderer = new CaveTileRenderer(world, this);
-    render(true);
   }
 }

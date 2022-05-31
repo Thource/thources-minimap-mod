@@ -1,7 +1,5 @@
 package dev.thource.wurmunlimited.clientmods.minimap.renderer.component;
 
-import static com.wurmonline.mesh.Tiles.Tile.TILE_ENCHANTED_TREE_OAK;
-import static com.wurmonline.mesh.Tiles.Tile.TILE_TREE_OAK;
 import static com.wurmonline.mesh.Tiles.TileRoadDirection.DIR_NE;
 import static com.wurmonline.mesh.Tiles.TileRoadDirection.DIR_NW;
 import static com.wurmonline.mesh.Tiles.TileRoadDirection.DIR_SE;
@@ -14,42 +12,27 @@ import com.wurmonline.mesh.Tiles;
 import dev.thource.wurmunlimited.clientmods.minimap.Constants;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.ImageManager;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.LayerRenderer;
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
 public class WorldTileRenderer extends TileRenderer implements TerrainChangeListener {
 
   public WorldTileRenderer(World world, LayerRenderer layerRenderer) {
-    super(world, layerRenderer);
+    super(layerRenderer);
     tileBuffer = world.getNearTerrainBuffer();
     ((NearTerrainDataBuffer) tileBuffer).addListener(this);
   }
 
   @Override
-  public RenderedTile render(int tileX, int tileY) {
-    Tiles.Tile tileType = tileBuffer.getTileType(tileX, tileY);
-    if (tileType.isTree() || tileType.isBush()) {
-      tileType = tileType.isEnchanted() ? TILE_ENCHANTED_TREE_OAK : TILE_TREE_OAK;
-    }
+  public RenderedTile renderTile(int tileX, int tileY) {
+    RenderedTile renderedTile = super.renderTile(tileX, tileY);
 
-    BufferedImage tileImage =
-        ImageManager.tileImages.getOrDefault(tileType, ImageManager.missingImage);
-    if (tileImage == ImageManager.missingImage) {
-      System.out.println("Missing image for tile: " + tileType.getName());
-    }
-
-    RenderedTile renderedTile = new RenderedTile(tileX, tileY);
-    Graphics2D graphics = renderedTile.getImage().createGraphics();
-    graphics.drawImage(tileImage, 0, 0, null);
-    graphics.dispose();
-
-    renderRoad(renderedTile, tileX, tileY);
-    renderWaterAndGeometry(renderedTile, tileX, tileY);
+    drawRoad(renderedTile, tileX, tileY);
+    drawWaterAndGeometry(renderedTile, tileX, tileY);
 
     return renderedTile;
   }
 
-  private void renderRoad(RenderedTile renderedTile, int tileX, int tileY) {
+  private void drawRoad(RenderedTile renderedTile, int tileX, int tileY) {
     Tiles.Tile tileType = tileBuffer.getTileType(tileX, tileY);
     if (!tileType.isRoad()) {
       return;
@@ -148,7 +131,6 @@ public class WorldTileRenderer extends TileRenderer implements TerrainChangeList
   @Override
   public void terrainUpdated(
       int startX, int startY, int endX, int endY, boolean heightsChanged, boolean bigUpdate) {
-    new Thread(() -> layerRenderer.renderTiles(startX - 1, startY - 1, endX + 1, endY + 1, true))
-        .start();
+    new Thread(() -> setDirty(startX - 1, startY - 1, endX + 1, endY + 1)).start();
   }
 }

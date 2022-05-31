@@ -21,10 +21,6 @@ public class MinimapWindow extends WWindow {
     this.sizeFlags = 3;
   }
 
-  public void fullRedraw() {
-    minimapView.fullRedraw();
-  }
-
   public void closePressed() {
     hud.toggleComponent(this);
   }
