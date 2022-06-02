@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import javax.imageio.ImageIO;
+import lombok.Setter;
 import org.gotti.wurmunlimited.modloader.ReflectionUtil;
 
 public class MinimapView extends FlexComponent {
@@ -48,6 +49,8 @@ public class MinimapView extends FlexComponent {
   private ImageTexture texture;
 
   private float zoomLevel = 1f;
+  @Setter private int actualWidth = width;
+  @Setter private int actualHeight = height;
 
   MinimapView(String name, int width, int height) {
     super(name);
@@ -76,9 +79,7 @@ public class MinimapView extends FlexComponent {
 
   @Override
   void mouseWheeled(int xMouse, int yMouse, int wheelDelta) {
-    zoomLevel *= Math.pow(1.1, -wheelDelta / 3f);
-    zoomLevel = Math.max(zoomLevel, 0.1f);
-    System.out.println("wheeled, new zoom: " + zoomLevel);
+    zoomLevel = (float) Math.min(Math.max(zoomLevel * Math.pow(1.1f, -wheelDelta / 3f), 0.1f), 2);
   }
 
   protected void renderComponent(Queue queue, float alpha) {
@@ -90,7 +91,7 @@ public class MinimapView extends FlexComponent {
     int tileY = pos.getTileY();
 
     WorldRender worldRenderer = world.getWorldRenderer();
-    BufferedImage framedImg = new BufferedImage(256, 256, BufferedImage.TYPE_INT_RGB);
+    BufferedImage framedImg = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
     Graphics2D framedGfx = framedImg.createGraphics();
     framedGfx.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
     framedGfx.setRenderingHint(
@@ -105,7 +106,7 @@ public class MinimapView extends FlexComponent {
     }
 
     if (!isNorthFacing) {
-      framedGfx.rotate(-cameraRotX, 128, 128);
+      framedGfx.rotate(-cameraRotX, actualWidth / 2f, actualHeight / 2f);
     }
     LayerRenderer layerRenderer =
         world.getPlayerLayer() == -1 ? caveLayerRenderer : worldLayerRenderer;
@@ -116,8 +117,8 @@ public class MinimapView extends FlexComponent {
             (layerRenderer.getTileRenderer().getCenterY() - 151) * 4f);
     framedGfx.drawImage(
         layerImage,
-        (int) layerPos.x + 128,
-        (int) layerPos.y + 128,
+        (int) layerPos.x + actualWidth / 2,
+        (int) layerPos.y + actualHeight / 2,
         Math.round(layerImage.getWidth() * zoomLevel),
         Math.round(layerImage.getHeight() * zoomLevel),
         null);
@@ -135,8 +136,12 @@ public class MinimapView extends FlexComponent {
       Vector2f fencePixelPos = worldPosToPixelPos(fence.getTileX() * 4f, fence.getTileY() * 4f);
       framedGfx.drawImage(
           fence.getImage(),
-          (int) fencePixelPos.x + 128 - (int) Math.floor(RenderedFence.PADDING / 2f * zoomLevel),
-          (int) fencePixelPos.y + 128 - (int) Math.floor(RenderedFence.PADDING / 2f * zoomLevel),
+          (int) fencePixelPos.x
+              + actualWidth / 2
+              - (int) Math.floor(RenderedFence.PADDING / 2f * zoomLevel),
+          (int) fencePixelPos.y
+              + actualHeight / 2
+              - (int) Math.floor(RenderedFence.PADDING / 2f * zoomLevel),
           Math.round(fence.getImage().getWidth() * zoomLevel),
           Math.round(fence.getImage().getHeight() * zoomLevel),
           null);
@@ -153,8 +158,8 @@ public class MinimapView extends FlexComponent {
       Vector2f bridgePixelPos = worldPosToPixelPos(bridge.getTileX() * 4f, bridge.getTileY() * 4f);
       framedGfx.drawImage(
           bridge.getImage(),
-          (int) bridgePixelPos.x + 128,
-          (int) bridgePixelPos.y + 128,
+          (int) bridgePixelPos.x + actualWidth / 2,
+          (int) bridgePixelPos.y + actualHeight / 2,
           Math.round(bridge.getImage().getWidth() * zoomLevel),
           Math.round(bridge.getImage().getHeight() * zoomLevel),
           null);
@@ -171,8 +176,12 @@ public class MinimapView extends FlexComponent {
         Vector2f housePixelPos = worldPosToPixelPos(house.getTileX() * 4f, house.getTileY() * 4f);
         framedGfx.drawImage(
             houseImage,
-            (int) housePixelPos.x + 128 - (int) Math.floor(RenderedHouse.PADDING / 2f * zoomLevel),
-            (int) housePixelPos.y + 128 - (int) Math.floor(RenderedHouse.PADDING / 2f * zoomLevel),
+            (int) housePixelPos.x
+                + actualWidth / 2
+                - (int) Math.floor(RenderedHouse.PADDING / 2f * zoomLevel),
+            (int) housePixelPos.y
+                + actualHeight / 2
+                - (int) Math.floor(RenderedHouse.PADDING / 2f * zoomLevel),
             Math.round(house.getImage().getWidth() * zoomLevel),
             Math.round(house.getImage().getHeight() * zoomLevel),
             null);
@@ -192,17 +201,17 @@ public class MinimapView extends FlexComponent {
                             worldPosToPixelPos(creature.getXPos(), creature.getYPos());
                         framedGfx.drawImage(
                             icon,
-                            (int) creaturePixelPos.x - icon.getWidth() / 2 + 128,
-                            (int) creaturePixelPos.y - icon.getHeight() / 2 + 128,
+                            (int) creaturePixelPos.x - icon.getWidth() / 2 + actualWidth / 2,
+                            (int) creaturePixelPos.y - icon.getHeight() / 2 + actualHeight / 2,
                             null);
                       });
             });
 
-    framedGfx.rotate(cameraRotX, 128, 128);
+    framedGfx.rotate(cameraRotX, actualWidth / 2f, actualHeight / 2f);
     framedGfx.drawImage(
         ImageManager.playerCursorImage,
-        128 - ImageManager.playerCursorImage.getWidth() / 2,
-        128 - ImageManager.playerCursorImage.getHeight() / 2,
+        actualWidth / 2 - ImageManager.playerCursorImage.getWidth() / 2,
+        actualHeight / 2 - ImageManager.playerCursorImage.getHeight() / 2,
         null);
 
     framedGfx.dispose();
@@ -221,7 +230,7 @@ public class MinimapView extends FlexComponent {
     }
 
     Renderer.texturedQuadAlphaBlend(
-        queue, this.texture, 1.0F, 1.0F, 1.0F, 1.0F, this.x, this.y, 256, 256, 0, 0, 1, 1);
+        queue, this.texture, 1.0F, 1.0F, 1.0F, 1.0F, this.x, this.y, width, height, 0, 0, 1, 1);
   }
 
   public Vector2f worldPosToPixelPos(float worldX, float worldY) {
