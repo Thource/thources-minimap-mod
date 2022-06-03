@@ -13,6 +13,7 @@ import static com.wurmonline.mesh.Tiles.Tile.TILE_CAVE_WALL_ORE_LEAD;
 import static com.wurmonline.mesh.Tiles.Tile.TILE_CAVE_WALL_ORE_SILVER;
 import static com.wurmonline.mesh.Tiles.Tile.TILE_CAVE_WALL_ORE_TIN;
 import static com.wurmonline.mesh.Tiles.Tile.TILE_CAVE_WALL_ORE_ZINC;
+import static com.wurmonline.mesh.Tiles.Tile.TILE_CAVE_WALL_ROCKSALT;
 import static com.wurmonline.mesh.Tiles.Tile.TILE_CAVE_WALL_SANDSTONE;
 import static com.wurmonline.mesh.Tiles.Tile.TILE_CAVE_WALL_SLATE;
 import static com.wurmonline.mesh.Tiles.Tile.TILE_CLAY;
@@ -156,7 +157,7 @@ public class ImageManager {
     simpleMap.put(TILE_MYCELIUM, "mycelium");
     simpleMap.put(TILE_PEAT, "peat");
     simpleMap.put(TILE_PLANKS, "planks");
-    simpleMap.put(TILE_PLANKS_TARRED, "planks");
+    simpleMap.put(TILE_PLANKS_TARRED, "floorBoardTarred");
     simpleMap.put(TILE_KELP, "dirt");
     simpleMap.put(TILE_POTTERY_BRICKS, "potterybrickpaving");
     simpleMap.put(TILE_REED, "reed");
@@ -174,24 +175,37 @@ public class ImageManager {
     simpleMap.put(TILE_CAVE, "cave512");
     simpleMap.put(TILE_CAVE_EXIT, "reinforcedcaveFloor_v1");
     simpleMap.put(TILE_CAVE_FLOOR_REINFORCED, "reinforcedcaveFloor_v1");
+    simpleMap.put(TILE_CAVE_WALL_ORE_IRON, "ironvein_512");
+    simpleMap.put(TILE_CAVE_WALL_ORE_COPPER, "coppervein_512");
+    simpleMap.put(TILE_CAVE_WALL_ORE_GOLD, "goldvein_512");
+    simpleMap.put(TILE_CAVE_WALL_ORE_ADAMANTINE, "adamantinevein_512");
+    simpleMap.put(TILE_CAVE_WALL_ORE_GLIMMERSTEEL, "glimmersteelvein_512");
+    simpleMap.put(TILE_CAVE_WALL_ORE_LEAD, "leadvein_512");
+    simpleMap.put(TILE_CAVE_WALL_ORE_SILVER, "silvervein_512");
+    simpleMap.put(TILE_CAVE_WALL_ORE_TIN, "tinvein_512");
+    simpleMap.put(TILE_CAVE_WALL_ORE_ZINC, "zincvein_512");
+    simpleMap.put(TILE_CAVE_WALL_SANDSTONE, "sandstonevein");
+    simpleMap.put(TILE_CAVE_WALL_SLATE, "slatevein_512");
+    simpleMap.put(TILE_CAVE_WALL_MARBLE, "marblevein_512");
+    simpleMap.put(TILE_CAVE_WALL_ROCKSALT, "rocksalt");
 
     Map<Tiles.Tile, BufferedImage> map = new HashMap<>();
     simpleMap.forEach(
         (tileType, imagePath) ->
             map.put(tileType, loadImage("/textures/terrain/" + imagePath + ".png")));
     map.put(TILE_HOLE, holeImage);
-    map.put(TILE_CAVE_WALL_ORE_IRON, createImageFromColor(new Color(0x9A4444)));
-    map.put(TILE_CAVE_WALL_ORE_COPPER, createImageFromColor(new Color(0x61AF95)));
-    map.put(TILE_CAVE_WALL_ORE_GOLD, createImageFromColor(new Color(0xD7BD0A)));
-    map.put(TILE_CAVE_WALL_ORE_ADAMANTINE, createImageFromColor(new Color(0x60a0ff)));
-    map.put(TILE_CAVE_WALL_ORE_GLIMMERSTEEL, createImageFromColor(new Color(0xFFF1A7)));
-    map.put(TILE_CAVE_WALL_ORE_LEAD, createImageFromColor(new Color(0x576B7E)));
-    map.put(TILE_CAVE_WALL_ORE_SILVER, createImageFromColor(new Color(0xE6E6E6)));
-    map.put(TILE_CAVE_WALL_ORE_TIN, createImageFromColor(new Color(0xB4C8D2)));
-    map.put(TILE_CAVE_WALL_ORE_ZINC, createImageFromColor(new Color(0x8C8C8C)));
-    map.put(TILE_CAVE_WALL_SANDSTONE, createImageFromColor(new Color(0xFFF1C3)));
-    map.put(TILE_CAVE_WALL_SLATE, createImageFromColor(new Color(0x404040)));
-    map.put(TILE_CAVE_WALL_MARBLE, createImageFromColor(new Color(0xAAAAAA)));
+//    map.put(TILE_CAVE_WALL_ORE_IRON, createImageFromColor(new Color(0x9A4444)));
+//    map.put(TILE_CAVE_WALL_ORE_COPPER, createImageFromColor(new Color(0x61AF95)));
+//    map.put(TILE_CAVE_WALL_ORE_GOLD, createImageFromColor(new Color(0xD7BD0A)));
+//    map.put(TILE_CAVE_WALL_ORE_ADAMANTINE, createImageFromColor(new Color(0x60a0ff)));
+//    map.put(TILE_CAVE_WALL_ORE_GLIMMERSTEEL, createImageFromColor(new Color(0xFFF1A7)));
+//    map.put(TILE_CAVE_WALL_ORE_LEAD, createImageFromColor(new Color(0x576B7E)));
+//    map.put(TILE_CAVE_WALL_ORE_SILVER, createImageFromColor(new Color(0xE6E6E6)));
+//    map.put(TILE_CAVE_WALL_ORE_TIN, createImageFromColor(new Color(0xB4C8D2)));
+//    map.put(TILE_CAVE_WALL_ORE_ZINC, createImageFromColor(new Color(0x8C8C8C)));
+//    map.put(TILE_CAVE_WALL_SANDSTONE, createImageFromColor(new Color(0xFFF1C3)));
+//    map.put(TILE_CAVE_WALL_SLATE, createImageFromColor(new Color(0x404040)));
+//    map.put(TILE_CAVE_WALL_MARBLE, createImageFromColor(new Color(0xAAAAAA)));
     return Collections.unmodifiableMap(map);
   }
 
@@ -216,18 +230,20 @@ public class ImageManager {
 
   private static Map<BridgeConstants.BridgeMaterial, BufferedImage> initBridgeImages() {
     Map<BridgeConstants.BridgeMaterial, String> simpleMap = new HashMap<>();
-    simpleMap.put(BridgeConstants.BridgeMaterial.BRICK, "Stone/bridgeTiling");
-    simpleMap.put(BridgeConstants.BridgeMaterial.POTTERY, "Stone/bridgeBrickTiling");
-    simpleMap.put(BridgeConstants.BridgeMaterial.RENDERED, "Stone/bridgeRenderedTiling");
-    simpleMap.put(BridgeConstants.BridgeMaterial.SANDSTONE, "Stone/bridgeSandstoneTiling");
-    simpleMap.put(BridgeConstants.BridgeMaterial.SLATE, "Stone/bridgeSlateTiling");
-    simpleMap.put(BridgeConstants.BridgeMaterial.ROUNDED_STONE, "Stone/bridgeRoundedTiling");
-    simpleMap.put(BridgeConstants.BridgeMaterial.MARBLE, "Marble/bridgeTilingMarble");
+    simpleMap.put(BridgeConstants.BridgeMaterial.BRICK, "bridgeTiling");
+    simpleMap.put(BridgeConstants.BridgeMaterial.POTTERY, "bridgeBrickTiling");
+    simpleMap.put(BridgeConstants.BridgeMaterial.RENDERED, "bridgeRenderedTiling");
+    simpleMap.put(BridgeConstants.BridgeMaterial.SANDSTONE, "bridgeSandstoneTiling");
+    simpleMap.put(BridgeConstants.BridgeMaterial.SLATE, "bridgeSlateTiling");
+    simpleMap.put(BridgeConstants.BridgeMaterial.ROUNDED_STONE, "bridgeRoundedTiling");
+    simpleMap.put(BridgeConstants.BridgeMaterial.MARBLE, "bridgeTilingMarble");
 
     Map<BridgeConstants.BridgeMaterial, BufferedImage> map = new HashMap<>();
     simpleMap.forEach(
         (tileType, imagePath) ->
             map.put(tileType, loadImage("/textures/Bridges/" + imagePath + ".png")));
+    map.put(BridgeConstants.BridgeMaterial.ROPE, loadImage("/textures/house/floor_dist.png"));
+    map.put(BridgeConstants.BridgeMaterial.WOOD, loadImage("/textures/house/floor_dist.png"));
     return Collections.unmodifiableMap(map);
   }
 
