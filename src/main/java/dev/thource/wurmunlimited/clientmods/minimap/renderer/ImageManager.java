@@ -61,7 +61,7 @@ import com.wurmonline.mesh.Tiles;
 import com.wurmonline.shared.constants.BridgeConstants;
 import com.wurmonline.shared.constants.StructureConstants;
 import com.wurmonline.shared.constants.StructureMaterialEnum;
-import dev.thource.wurmunlimited.clientmods.minimap.Constants;
+import dev.thource.wurmunlimited.clientmods.minimap.Settings;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -117,10 +117,11 @@ public class ImageManager {
       }
 
       Image scaledImage =
-          image.getScaledInstance(Constants.TILE_SIZE, Constants.TILE_SIZE, Image.SCALE_SMOOTH);
+          image.getScaledInstance(
+              Settings.getTileSize(), Settings.getTileSize(), Image.SCALE_SMOOTH);
 
       BufferedImage scaledBufferedImage =
-          new BufferedImage(Constants.TILE_SIZE, Constants.TILE_SIZE, image.getType());
+          new BufferedImage(Settings.getTileSize(), Settings.getTileSize(), image.getType());
       Graphics2D graphics = scaledBufferedImage.createGraphics();
       graphics.drawImage(scaledImage, 0, 0, null);
       graphics.dispose();
@@ -263,10 +264,11 @@ public class ImageManager {
 
   private static BufferedImage createImageFromColor(Color color) {
     BufferedImage image =
-        new BufferedImage(Constants.TILE_SIZE, Constants.TILE_SIZE, BufferedImage.TYPE_INT_RGB);
+        new BufferedImage(
+            Settings.getTileSize(), Settings.getTileSize(), BufferedImage.TYPE_INT_RGB);
     Graphics2D gfx = image.createGraphics();
     gfx.setBackground(color);
-    gfx.clearRect(0, 0, Constants.TILE_SIZE, Constants.TILE_SIZE);
+    gfx.clearRect(0, 0, Settings.getTileSize(), Settings.getTileSize());
     gfx.dispose();
 
     return image;

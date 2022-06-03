@@ -1,7 +1,7 @@
 package dev.thource.wurmunlimited.clientmods.minimap.renderer.component;
 
 import com.wurmonline.client.renderer.structures.FenceData;
-import dev.thource.wurmunlimited.clientmods.minimap.Constants;
+import dev.thource.wurmunlimited.clientmods.minimap.Settings;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.ImageManager;
 import java.awt.AlphaComposite;
 import java.awt.Color;
@@ -11,7 +11,7 @@ import lombok.Getter;
 
 public class RenderedFence extends RenderedStructure {
   static {
-    PADDING = (int) Math.max(Constants.TILE_SIZE / 4f, 1);
+    PADDING = (int) Math.max(Settings.getTileSize() / 4f, 1);
   }
 
   @Getter private final boolean horizontal;
@@ -25,8 +25,8 @@ public class RenderedFence extends RenderedStructure {
     horizontal = data.getTileXEnd() != tileX;
     image =
         new BufferedImage(
-            horizontal ? Constants.TILE_SIZE + PADDING : PADDING,
-            horizontal ? PADDING : Constants.TILE_SIZE + PADDING,
+            horizontal ? Settings.getTileSize() + PADDING : PADDING,
+            horizontal ? PADDING : Settings.getTileSize() + PADDING,
             BufferedImage.TYPE_INT_ARGB);
     this.data = data;
     fullRedraw(image);

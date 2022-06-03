@@ -1,6 +1,6 @@
 package dev.thource.wurmunlimited.clientmods.minimap.renderer.component;
 
-import dev.thource.wurmunlimited.clientmods.minimap.Constants;
+import dev.thource.wurmunlimited.clientmods.minimap.Settings;
 import java.awt.image.BufferedImage;
 import lombok.Getter;
 
@@ -35,8 +35,8 @@ abstract class RenderedStructure {
   protected abstract void recalculateDimensions();
 
   protected boolean hasSizeChanged() {
-    return image.getWidth() != width * Constants.TILE_SIZE + PADDING
-        || image.getHeight() != length * Constants.TILE_SIZE + PADDING;
+    return image.getWidth() != width * Settings.getTileSize() + PADDING
+        || image.getHeight() != length * Settings.getTileSize() + PADDING;
   }
 
   protected BufferedImage resize() {
@@ -47,8 +47,8 @@ abstract class RenderedStructure {
     }
 
     return new BufferedImage(
-        width * Constants.TILE_SIZE + PADDING,
-        length * Constants.TILE_SIZE + PADDING,
+        width * Settings.getTileSize() + PADDING,
+        length * Settings.getTileSize() + PADDING,
         BufferedImage.TYPE_INT_ARGB);
   }
 }

@@ -17,7 +17,7 @@ import com.wurmonline.client.resources.textures.PreProcessedTextureData;
 import com.wurmonline.client.resources.textures.TextureLoader;
 import com.wurmonline.math.Vector2f;
 import com.wurmonline.shared.util.MovementChecker;
-import dev.thource.wurmunlimited.clientmods.minimap.Constants;
+import dev.thource.wurmunlimited.clientmods.minimap.Settings;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.CaveLayerRenderer;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.ImageManager;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.LayerRenderer;
@@ -45,10 +45,10 @@ public class MinimapView extends FlexComponent {
   private final Method preprocessImage;
   // TODO: move these somewhere configurable
   boolean isNorthFacing = false;
-  int imageSize = Constants.TILE_SIZE * 302;
+  int imageSize = Settings.getTileSize() * 302;
   private ImageTexture texture;
 
-  private float zoomLevel = 1f;
+  private float zoomLevel = 24f / Settings.getTileSize();
   @Setter private int actualWidth = width;
   @Setter private int actualHeight = height;
 
@@ -79,7 +79,13 @@ public class MinimapView extends FlexComponent {
 
   @Override
   void mouseWheeled(int xMouse, int yMouse, int wheelDelta) {
-    zoomLevel = (float) Math.min(Math.max(zoomLevel * Math.pow(1.1f, -wheelDelta / 3f), 0.1f), 2);
+    zoomLevel =
+        (float)
+            Math.min(
+                Math.max(
+                    zoomLevel * Math.pow(1.1f, -wheelDelta / 3f),
+                    0.1f * (24f / Settings.getTileSize())),
+                2 * (24f / Settings.getTileSize()));
   }
 
   protected void renderComponent(Queue queue, float alpha) {
@@ -233,28 +239,55 @@ public class MinimapView extends FlexComponent {
         queue, this.texture, 1.0F, 1.0F, 1.0F, 1.0F, this.x, this.y, width, height, 0, 0, 1, 1);
   }
 
-  public Vector2f worldPosToPixelPos(float worldX, float worldY) {
+  private BufferedImage scaleImage(BufferedImage image, float scale) {
+    if (scale == 1) {
+      return image;
+    }
+
+    int scaledWidth = Math.round(image.getWidth() * scale);
+    int scaledHeight = Math.round(image.getHeight() * scale);
+    BufferedImage scalingImage =
+        new BufferedImage(
+            Math.max(image.getWidth(), scaledWidth),
+            Math.max(image.getHeight(), scaledHeight),
+            image.getType());
+    Graphics2D graphics = scalingImage.createGraphics();
+    graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+    graphics.setRenderingHint(
+        RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+    if (scale > 1) {
+      graphics.drawImage(image, 0, 0, scaledWidth, scaledHeight, null);
+      graphics.dispose();
+      return scalingImage;
+    }
+
+    graphics.drawImage(image, 0, 0, null);
+    int lastWidth = image.getWidth();
+    int lastHeight = image.getHeight();
+    while (lastWidth > scaledWidth && lastHeight > scaledHeight) {
+      int nextWidth = Math.max(scaledWidth, lastWidth / 2);
+      int nextHeight = Math.max(scaledHeight, lastHeight / 2);
+
+      graphics.drawImage(
+          scalingImage.getSubimage(0, 0, lastWidth, lastHeight), 0, 0, nextWidth, nextHeight, null);
+
+      lastWidth = nextWidth;
+      lastHeight = nextHeight;
+    }
+    graphics.dispose();
+
+    return scalingImage.getSubimage(0, 0, scaledWidth, scaledHeight);
+  }
+
+  private Vector2f worldPosToPixelPos(float worldX, float worldY) {
     PlayerObj player = world.getPlayer();
     PlayerPosition pos = player.getPos();
     float centerX = pos.getX();
     float centerY = pos.getY();
 
     return new Vector2f(
-        (float) Math.floor((worldX - centerX) / 4f * Constants.TILE_SIZE * zoomLevel),
-        (float) Math.floor((worldY - centerY) / 4f * Constants.TILE_SIZE * zoomLevel));
-  }
-
-  private Vector2f getPixelPos(float xPos, float yPos) {
-    PlayerObj player = world.getPlayer();
-    PlayerPosition pos = player.getPos();
-    int tileX = pos.getTileX();
-    int tileY = pos.getTileY();
-    float xDiff = (xPos / 4f) - tileX;
-    float yDiff = (yPos / 4f) - tileY;
-
-    return new Vector2f(
-        (int) (imageSize / 2f) + (xDiff * Constants.TILE_SIZE) - (Constants.TILE_SIZE / 2f),
-        (int) (imageSize / 2f) + (yDiff * Constants.TILE_SIZE) - (Constants.TILE_SIZE / 2f));
+        (float) Math.floor((worldX - centerX) / 4f * Settings.getTileSize() * zoomLevel),
+        (float) Math.floor((worldY - centerY) / 4f * Settings.getTileSize() * zoomLevel));
   }
 
   public void addStructure(StructureData structureData) {

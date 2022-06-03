@@ -1,7 +1,7 @@
 package dev.thource.wurmunlimited.clientmods.minimap.renderer.topology;
 
 import com.wurmonline.client.game.IDataBuffer;
-import dev.thource.wurmunlimited.clientmods.minimap.Constants;
+import dev.thource.wurmunlimited.clientmods.minimap.Settings;
 import java.awt.Color;
 
 public class ShadedRelief {
@@ -11,13 +11,23 @@ public class ShadedRelief {
   private ShadedRelief() {}
 
   private static float getAveragePointHeight(
-      IDataBuffer buffer, float worldX, float worldY, float dirX, float dirY, int steps, float stepSize) {
-    float average = buffer.getInterpolatedHeight(worldX + dirX * stepSize, worldY + dirY * stepSize);
+      IDataBuffer buffer,
+      float worldX,
+      float worldY,
+      float dirX,
+      float dirY,
+      int steps,
+      float stepSize) {
+    float average =
+        buffer.getInterpolatedHeight(worldX + dirX * stepSize, worldY + dirY * stepSize);
     if (steps <= 1) {
       return average;
     }
 
-    return (average + buffer.getInterpolatedHeight(worldX + dirX * stepSize * steps, worldY + dirY * stepSize * steps)) / 2f;
+    return (average
+            + buffer.getInterpolatedHeight(
+                worldX + dirX * stepSize * steps, worldY + dirY * stepSize * steps))
+        / 2f;
   }
 
   public static Color getColor(IDataBuffer buffer, float worldX, float worldY, float stepSize) {
@@ -34,21 +44,29 @@ public class ShadedRelief {
     //    float southEastHeight = buffer.getInterpolatedHeight(worldX + stepSize, worldY +
     // stepSize);
     float northWestHeight =
-        getAveragePointHeight(buffer, worldX, worldY, -1, -1, Math.max(Constants.TILE_SIZE / 4, 1), stepSize);
+        getAveragePointHeight(
+            buffer, worldX, worldY, -1, -1, Math.max(Settings.getTileSize() / 4, 1), stepSize);
     float northHeight =
-        getAveragePointHeight(buffer, worldX, worldY, 0, -1, Math.max(Constants.TILE_SIZE / 4, 1), stepSize);
+        getAveragePointHeight(
+            buffer, worldX, worldY, 0, -1, Math.max(Settings.getTileSize() / 4, 1), stepSize);
     float northEastHeight =
-        getAveragePointHeight(buffer, worldX, worldY, 1, -1, Math.max(Constants.TILE_SIZE / 4, 1), stepSize);
+        getAveragePointHeight(
+            buffer, worldX, worldY, 1, -1, Math.max(Settings.getTileSize() / 4, 1), stepSize);
     float westHeight =
-        getAveragePointHeight(buffer, worldX, worldY, -1, 0, Math.max(Constants.TILE_SIZE / 4, 1), stepSize);
+        getAveragePointHeight(
+            buffer, worldX, worldY, -1, 0, Math.max(Settings.getTileSize() / 4, 1), stepSize);
     float eastHeight =
-        getAveragePointHeight(buffer, worldX, worldY, 1, 0, Math.max(Constants.TILE_SIZE / 4, 1), stepSize);
+        getAveragePointHeight(
+            buffer, worldX, worldY, 1, 0, Math.max(Settings.getTileSize() / 4, 1), stepSize);
     float southWestHeight =
-        getAveragePointHeight(buffer, worldX, worldY, -1, 1, Math.max(Constants.TILE_SIZE / 4, 1), stepSize);
+        getAveragePointHeight(
+            buffer, worldX, worldY, -1, 1, Math.max(Settings.getTileSize() / 4, 1), stepSize);
     float southHeight =
-        getAveragePointHeight(buffer, worldX, worldY, 0, 1, Math.max(Constants.TILE_SIZE / 4, 1), stepSize);
+        getAveragePointHeight(
+            buffer, worldX, worldY, 0, 1, Math.max(Settings.getTileSize() / 4, 1), stepSize);
     float southEastHeight =
-        getAveragePointHeight(buffer, worldX, worldY, 1, 1, Math.max(Constants.TILE_SIZE / 4, 1), stepSize);
+        getAveragePointHeight(
+            buffer, worldX, worldY, 1, 1, Math.max(Settings.getTileSize() / 4, 1), stepSize);
 
     double horizontalDelta =
         ((southWestHeight + southHeight * 2f + southEastHeight)

@@ -9,7 +9,7 @@ import com.wurmonline.client.game.PlayerObj;
 import com.wurmonline.client.game.PlayerPosition;
 import com.wurmonline.client.game.TerrainDataInformationProvider;
 import com.wurmonline.mesh.Tiles;
-import dev.thource.wurmunlimited.clientmods.minimap.Constants;
+import dev.thource.wurmunlimited.clientmods.minimap.Settings;
 import dev.thource.wurmunlimited.clientmods.minimap.Vector2i;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.ImageManager;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.LayerRenderer;
@@ -32,8 +32,8 @@ public abstract class TileRenderer {
   @Getter
   protected BufferedImage image =
       new BufferedImage(
-          bufferSize * Constants.TILE_SIZE,
-          bufferSize * Constants.TILE_SIZE,
+          bufferSize * Settings.getTileSize(),
+          bufferSize * Settings.getTileSize(),
           BufferedImage.TYPE_INT_RGB);
 
   protected BufferedImage transferImage =
@@ -60,7 +60,7 @@ public abstract class TileRenderer {
 
     Graphics2D transferImageGfx = transferImage.createGraphics();
     transferImageGfx.drawImage(
-        image, -shiftX * Constants.TILE_SIZE, -shiftY * Constants.TILE_SIZE, null);
+        image, -shiftX * Settings.getTileSize(), -shiftY * Settings.getTileSize(), null);
     transferImageGfx.dispose();
 
     BufferedImage tmp = image;
@@ -103,7 +103,7 @@ public abstract class TileRenderer {
     float neCorner = getHeight(tileX + 1, tileY);
     float swCorner = getHeight(tileX, tileY + 1);
     float seCorner = getHeight(tileX + 1, tileY + 1);
-    if (!Constants.TRANSPARENT_WATER
+    if (!Settings.isTransparentWater()
         && nwCorner < waterHeight
         && neCorner < waterHeight
         && swCorner < waterHeight
@@ -121,15 +121,15 @@ public abstract class TileRenderer {
             && swCorner >= waterHeight
             && seCorner >= waterHeight;
 
-    if (Constants.RENDER_HEIGHT) {
-      for (int py = 0; py < Constants.TILE_SIZE; py++) {
-        float worldY = (tileY + ((float) py / (Constants.TILE_SIZE - 1))) * 4f;
-        for (int px = 0; px < Constants.TILE_SIZE; px++) {
-          float worldX = (tileX + ((float) px / (Constants.TILE_SIZE - 1))) * 4f;
+    if (Settings.isRenderHeight()) {
+      for (int py = 0; py < Settings.getTileSize(); py++) {
+        float worldY = (tileY + ((float) py / (Settings.getTileSize() - 1))) * 4f;
+        for (int px = 0; px < Settings.getTileSize(); px++) {
+          float worldX = (tileX + ((float) px / (Settings.getTileSize() - 1))) * 4f;
 
           float pointHeight = getInterpolatedHeight(worldX, worldY);
           float alpha = Math.min(70 + waterHeight - pointHeight * 5, 255) / 255f;
-          if ((Constants.TRANSPARENT_WATER || dryTile || waterHeight < pointHeight) && alpha < 1) {
+          if ((Settings.isTransparentWater() || dryTile || waterHeight < pointHeight) && alpha < 1) {
             renderHeight(px, py, renderedTile, worldX, worldY);
           }
         }
@@ -139,15 +139,15 @@ public abstract class TileRenderer {
       return;
     }
 
-    for (int py = 0; py < Constants.TILE_SIZE; py++) {
-      float worldY = (tileY + ((float) py / (Constants.TILE_SIZE - 1))) * 4f;
-      for (int px = 0; px < Constants.TILE_SIZE; px++) {
-        float worldX = (tileX + ((float) px / (Constants.TILE_SIZE - 1))) * 4f;
+    for (int py = 0; py < Settings.getTileSize(); py++) {
+      float worldY = (tileY + ((float) py / (Settings.getTileSize() - 1))) * 4f;
+      for (int px = 0; px < Settings.getTileSize(); px++) {
+        float worldX = (tileX + ((float) px / (Settings.getTileSize() - 1))) * 4f;
 
         float pointHeight = getInterpolatedHeight(worldX, worldY);
         if (waterHeight >= pointHeight) {
           float alpha = Math.min(70 + waterHeight - pointHeight * 5, 255) / 255f;
-          if (Constants.TRANSPARENT_WATER && alpha < 1) {
+          if (Settings.isTransparentWater() && alpha < 1) {
             Color currentColor = new Color(renderedTile.getImage().getRGB(px, py));
             Color waterColor = new Color(ImageManager.waterImage.getRGB(px, py));
             Color newColor =
@@ -167,7 +167,7 @@ public abstract class TileRenderer {
   private void renderHeight(int px, int py, RenderedTile renderedTile, float worldX, float worldY) {
     Color heightColor =
         ShadedRelief.getColor(
-            (IDataBuffer) tileBuffer, worldX, worldY, (1f / Constants.TILE_SIZE) * 4f);
+            (IDataBuffer) tileBuffer, worldX, worldY, (1f / Settings.getTileSize()) * 4f);
     float alpha = heightColor.getAlpha() / 255f;
     Color currentColor = new Color(renderedTile.getImage().getRGB(px, py));
     Color newColor =
@@ -195,8 +195,8 @@ public abstract class TileRenderer {
                 int canvasY = (tile.getY() - centerY) + (bufferSize / 2);
                 graphics.drawImage(
                     tile.getImage(),
-                    canvasX * Constants.TILE_SIZE,
-                    canvasY * Constants.TILE_SIZE,
+                    canvasX * Settings.getTileSize(),
+                    canvasY * Settings.getTileSize(),
                     null);
               });
       graphics.dispose();

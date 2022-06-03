@@ -9,7 +9,7 @@ import com.wurmonline.client.game.NearTerrainDataBuffer;
 import com.wurmonline.client.game.TerrainChangeListener;
 import com.wurmonline.client.game.World;
 import com.wurmonline.mesh.Tiles;
-import dev.thource.wurmunlimited.clientmods.minimap.Constants;
+import dev.thource.wurmunlimited.clientmods.minimap.Settings;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.ImageManager;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.LayerRenderer;
 import java.awt.image.BufferedImage;
@@ -77,30 +77,30 @@ public class WorldTileRenderer extends TileRenderer implements TerrainChangeList
                 nearTerrainBuffer.getSecondaryType(tileX - 1, tileY), ImageManager.missingImage);
       }
 
-      for (int py = 0; py < Constants.TILE_SIZE; py++) {
-        for (int px = 0; px < Constants.TILE_SIZE; px++) {
+      for (int py = 0; py < Settings.getTileSize(); py++) {
+        for (int px = 0; px < Settings.getTileSize(); px++) {
           if ((roadDirection == DIR_SE || roadDirection == DIR_SW)
-              && py <= Constants.TILE_SIZE / 2 - 1
+              && py <= Settings.getTileSize() / 2 - 1
               && px - py >= 0
-              && px + py <= Constants.TILE_SIZE - 1) {
+              && px + py <= Settings.getTileSize() - 1) {
             renderedTile.getImage().setRGB(px, py, northTileImage.getRGB(px, py));
           }
           if ((roadDirection == DIR_NW || roadDirection == DIR_SW)
-              && px >= Constants.TILE_SIZE / 2
-              && py - (Constants.TILE_SIZE - 1 - px) >= 0
-              && py + (Constants.TILE_SIZE - 1 - px) <= Constants.TILE_SIZE - 1) {
+              && px >= Settings.getTileSize() / 2
+              && py - (Settings.getTileSize() - 1 - px) >= 0
+              && py + (Settings.getTileSize() - 1 - px) <= Settings.getTileSize() - 1) {
             renderedTile.getImage().setRGB(px, py, eastTileImage.getRGB(px, py));
           }
           if ((roadDirection == DIR_NE || roadDirection == DIR_NW)
-              && py >= Constants.TILE_SIZE / 2
-              && px - (Constants.TILE_SIZE - 1 - py) >= 0
-              && px + (Constants.TILE_SIZE - 1 - py) <= Constants.TILE_SIZE - 1) {
+              && py >= Settings.getTileSize() / 2
+              && px - (Settings.getTileSize() - 1 - py) >= 0
+              && px + (Settings.getTileSize() - 1 - py) <= Settings.getTileSize() - 1) {
             renderedTile.getImage().setRGB(px, py, southTileImage.getRGB(px, py));
           }
           if ((roadDirection == DIR_NE || roadDirection == DIR_SE)
-              && px <= Constants.TILE_SIZE / 2 - 1
+              && px <= Settings.getTileSize() / 2 - 1
               && py - px >= 0
-              && py + px <= Constants.TILE_SIZE - 1) {
+              && py + px <= Settings.getTileSize() - 1) {
             renderedTile.getImage().setRGB(px, py, westTileImage.getRGB(px, py));
           }
         }

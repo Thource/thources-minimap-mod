@@ -12,19 +12,40 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import org.gotti.wurmunlimited.modloader.ReflectionUtil;
 import org.gotti.wurmunlimited.modloader.classhooks.HookManager;
+import org.gotti.wurmunlimited.modloader.interfaces.Configurable;
 import org.gotti.wurmunlimited.modloader.interfaces.Initable;
 import org.gotti.wurmunlimited.modloader.interfaces.PreInitable;
 import org.gotti.wurmunlimited.modloader.interfaces.WurmClientMod;
 import org.gotti.wurmunlimited.modsupport.console.ConsoleListener;
 import org.gotti.wurmunlimited.modsupport.console.ModConsole;
 
-public class Minimap implements WurmClientMod, Initable, PreInitable, ConsoleListener {
+public class Minimap
+    implements WurmClientMod, Initable, PreInitable, ConsoleListener, Configurable {
 
   private final List<StructureData> structureDataQueue = new ArrayList<>();
   private boolean isOpen = false;
   private MinimapWindow minimapWindow;
+
+  @Override
+  public void configure(Properties properties) {
+    Settings.setRenderHeight(
+        Boolean.parseBoolean(
+            properties.getProperty("renderHeight", String.valueOf(Settings.isRenderHeight()))));
+    Settings.setTransparentWater(
+        Boolean.parseBoolean(
+            properties.getProperty(
+                "transparentWater", String.valueOf(Settings.isTransparentWater()))));
+    Settings.setTileSize(
+        Math.min(
+            32,
+            Math.max(
+                1,
+                Integer.parseInt(
+                    properties.getProperty("tileSize", String.valueOf(Settings.getTileSize()))))));
+  }
 
   @Override
   public void preInit() {

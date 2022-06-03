@@ -3,7 +3,7 @@ package dev.thource.wurmunlimited.clientmods.minimap.renderer.component;
 import com.wurmonline.client.renderer.structures.BridgeData;
 import com.wurmonline.client.renderer.structures.BridgePartData;
 import com.wurmonline.shared.constants.BridgeConstants.BridgeState;
-import dev.thource.wurmunlimited.clientmods.minimap.Constants;
+import dev.thource.wurmunlimited.clientmods.minimap.Settings;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.ImageManager;
 import java.awt.AlphaComposite;
 import java.awt.Color;
@@ -15,7 +15,7 @@ import java.util.List;
 
 public class RenderedBridge extends RenderedStructure {
   static {
-    PADDING = (int) Math.max(Constants.TILE_SIZE / 8f, 1);
+    PADDING = (int) Math.max(Settings.getTileSize() / 8f, 1);
   }
 
   private final List<BridgePartData> bridgeParts = new ArrayList<>();
@@ -61,10 +61,10 @@ public class RenderedBridge extends RenderedStructure {
     for (int i = 0; i < PADDING; i++) {
       graphics.setPaint(new Color(0, 0, 0, (0.5f / PADDING) * (PADDING - i)));
       graphics.fillRect(
-          horizontal ? 0 : Constants.TILE_SIZE * width + i,
-          horizontal ? Constants.TILE_SIZE * length + i : 0,
-          horizontal ? Constants.TILE_SIZE * width : 1,
-          horizontal ? 1 : Constants.TILE_SIZE * length);
+          horizontal ? 0 : Settings.getTileSize() * width + i,
+          horizontal ? Settings.getTileSize() * length + i : 0,
+          horizontal ? Settings.getTileSize() * width : 1,
+          horizontal ? 1 : Settings.getTileSize() * length);
     }
 
     bridgeParts.stream()
@@ -105,8 +105,8 @@ public class RenderedBridge extends RenderedStructure {
 
     graphics.drawImage(
         bridgePartImage,
-        (bridgePart.getTileX() - tileX) * Constants.TILE_SIZE,
-        (bridgePart.getTileY() - tileY) * Constants.TILE_SIZE,
+        (bridgePart.getTileX() - tileX) * Settings.getTileSize(),
+        (bridgePart.getTileY() - tileY) * Settings.getTileSize(),
         null);
 
     if (bridgePart.getState() != BridgeState.COMPLETED) {

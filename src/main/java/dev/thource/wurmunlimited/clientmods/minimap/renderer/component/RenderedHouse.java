@@ -6,7 +6,7 @@ import com.wurmonline.client.renderer.structures.HouseRoofData;
 import com.wurmonline.client.renderer.structures.HouseWallData;
 import com.wurmonline.shared.constants.StructureConstants.FloorType;
 import com.wurmonline.shared.constants.StructureConstantsEnum;
-import dev.thource.wurmunlimited.clientmods.minimap.Constants;
+import dev.thource.wurmunlimited.clientmods.minimap.Settings;
 import dev.thource.wurmunlimited.clientmods.minimap.renderer.ImageManager;
 import java.awt.AlphaComposite;
 import java.awt.Color;
@@ -23,7 +23,7 @@ public class RenderedHouse extends RenderedStructure {
   //  private static final List<FloorType> TRANSPARENT_FLOOR_TYPES = List.of(FloorType.OPENING);
 
   static {
-    PADDING = (int) Math.max(Constants.TILE_SIZE / 4f, 1);
+    PADDING = (int) Math.max(Settings.getTileSize() / 4f, 1);
   }
 
   private final List<BufferedImage> levelImages = new ArrayList<>();
@@ -115,7 +115,8 @@ public class RenderedHouse extends RenderedStructure {
 
   private void drawHouseFloor(HouseFloorData houseFloor, Graphics2D graphics) {
     BufferedImage floorImage =
-        new BufferedImage(Constants.TILE_SIZE, Constants.TILE_SIZE, BufferedImage.TYPE_INT_ARGB);
+        new BufferedImage(
+            Settings.getTileSize(), Settings.getTileSize(), BufferedImage.TYPE_INT_ARGB);
     Graphics2D floorGraphics = floorImage.createGraphics();
     floorGraphics.drawImage(
         ImageManager.houseMaterialImages.getOrDefault(
@@ -127,16 +128,16 @@ public class RenderedHouse extends RenderedStructure {
     if (houseFloor.getType() == FloorType.OPENING) {
       floorGraphics.setBackground(new Color(0, 0, 0, 0));
       floorGraphics.clearRect(
-          Constants.TILE_SIZE / 4,
-          Constants.TILE_SIZE / 4,
-          Constants.TILE_SIZE / 2,
-          Constants.TILE_SIZE / 2);
+          Settings.getTileSize() / 4,
+          Settings.getTileSize() / 4,
+          Settings.getTileSize() / 2,
+          Settings.getTileSize() / 2);
     }
 
     graphics.drawImage(
         floorImage,
-        (houseFloor.getTileX() - tileX) * Constants.TILE_SIZE + PADDING / 2,
-        (houseFloor.getTileY() - tileY) * Constants.TILE_SIZE + PADDING / 2,
+        (houseFloor.getTileX() - tileX) * Settings.getTileSize() + PADDING / 2,
+        (houseFloor.getTileY() - tileY) * Settings.getTileSize() + PADDING / 2,
         null);
   }
 
@@ -152,10 +153,10 @@ public class RenderedHouse extends RenderedStructure {
 
     boolean horizontal = houseWall.getTileXEnd() != houseWall.getTileX();
     graphics.fillRect(
-        (houseWall.getTileX() - tileX) * Constants.TILE_SIZE,
-        (houseWall.getTileY() - tileY) * Constants.TILE_SIZE,
-        horizontal ? Constants.TILE_SIZE + PADDING : PADDING,
-        horizontal ? PADDING : Constants.TILE_SIZE + PADDING);
+        (houseWall.getTileX() - tileX) * Settings.getTileSize(),
+        (houseWall.getTileY() - tileY) * Settings.getTileSize(),
+        horizontal ? Settings.getTileSize() + PADDING : PADDING,
+        horizontal ? PADDING : Settings.getTileSize() + PADDING);
 
     if (houseWall.isGate()
         || houseWall.getCollisionHeight() == 0f
@@ -168,8 +169,8 @@ public class RenderedHouse extends RenderedStructure {
     graphics.drawImage(
         ImageManager.houseMaterialImages.getOrDefault(
             houseRoof.getMaterial(), ImageManager.missingImage),
-        (houseRoof.getTileX() - tileX) * Constants.TILE_SIZE + PADDING / 2,
-        (houseRoof.getTileY() - tileY) * Constants.TILE_SIZE + PADDING / 2,
+        (houseRoof.getTileX() - tileX) * Settings.getTileSize() + PADDING / 2,
+        (houseRoof.getTileY() - tileY) * Settings.getTileSize() + PADDING / 2,
         null);
   }
 
