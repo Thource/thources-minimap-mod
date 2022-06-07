@@ -24,6 +24,9 @@ dependencies {
     implementation(files("F:\\SteamLibrary\\steamapps\\common\\Wurm Unlimited\\WurmLauncher\\common.jar"))
     implementation(files("F:\\SteamLibrary\\steamapps\\common\\Wurm Unlimited\\WurmLauncher\\javassist.jar"))
     implementation(files("F:\\SteamLibrary\\steamapps\\common\\Wurm Unlimited\\WurmLauncher\\modlauncher.jar"))
+
+    compileOnly("org.projectlombok:lombok:1.18.4")
+    annotationProcessor("org.projectlombok:lombok:1.18.4")
 }
 
 publishing {

@@ -1,26 +1,24 @@
-# Thource's Third Person Mod
-Thource's Third Person mod is a third person camera mod for Wurm Unlimited (extended from https://github.com/tgrkzus/wurm-thirdperson).
+# Thource's Minimap Mod
+Thource's Minimap Mod adds a detailed minimap to Wurm Unlimited.
 
 ## Requirements
 - As with most WU mods, this mod depends on [Ago's mod loader](https://forum.wurmonline.com/index.php?/topic/134945-released-client-mod-loader).
 
 ## Installation
-1. Download the latest version from https://github.com/Thource/thources-third-person-mod/releases/latest
-2. Extract the contents of `thources-third-person-mod.zip` into your Wurm Unlimited `mods` folder.
+1. Download the latest version from https://github.com/Thource/thources-minimap-mod/releases/latest
+2. Extract the contents of `thources-minimap-mod.zip` into your Wurm Unlimited `mods` folder.
 
 ## Usage
-When ingame, open the console with F1 and type any of the following commands:
+The minimap can be opened and closed with the `Minimap` button on the `esc` menu.
 
-*Note: All commands must be prefixed with `tp`, for example: `tp toggle`.*
+There are also some console commands, open the console with F1 and type any of the following:
 
-| Command               | Description                        |
-| -------------------- | ----------------------------------- |
-| `toggle`             | Turns third person on/off           |
-| `enable`<br>`on`     | Turns third person on               |
-| `disable`<br>`off`   | Turns third person off              |
-| `zoom-in`            | Zooms in by 0.1                     |
-| `zoom-out`           | Zooms out by 0.1                    |
-| `set-zoom NUMBER`    | Sets zoom to the specified value    |
-| `get-zoom`           | Gets the current zoom               |
-| `set-xoffset NUMBER` | Sets xOffset to the specified value |
-| `get-xoffset`        | Gets the current xOffset            |
+*Note: All commands must be prefixed with `minimap`, for example: `minimap toggle`.*
+
+| Command              | Description                                                                             |
+|----------------------|-----------------------------------------------------------------------------------------|
+| `toggle`             | Toggles open/closed the minimap                                                         |
+| `open`               | Opens the minimap                                                                       |
+| `close`              | Closes the minimap                                                                      |
+| `dump`               | Saves a full render of the local area in the minimap-dumps directory of your WU install |
+| `rerender`           | Re-renders all tiles (slowly)                                                           |
