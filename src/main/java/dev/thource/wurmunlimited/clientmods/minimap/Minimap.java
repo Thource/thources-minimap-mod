@@ -26,7 +26,6 @@ public class Minimap
     implements WurmClientMod, Initable, PreInitable, ConsoleListener, Configurable {
 
   private final List<StructureData> structureDataQueue = new ArrayList<>();
-  private boolean isOpen = false;
   private MinimapWindow minimapWindow;
 
   @Override
@@ -157,23 +156,6 @@ public class Minimap
     }
   }
 
-  private void open() {
-    isOpen = true;
-  }
-
-  private void close() {
-    isOpen = false;
-  }
-
-  private void toggle() {
-    if (isOpen) {
-      close();
-      return;
-    }
-
-    open();
-  }
-
   @Override
   public boolean handleInput(String string, Boolean aBoolean) {
     if (string == null) {
@@ -189,16 +171,16 @@ public class Minimap
       String command = args[1];
       switch (command) {
         case "open":
-          open();
+          minimapWindow.open();
           System.out.printf("[%s] Opened%n", Minimap.class.getName());
           return true;
         case "close":
-          close();
+          minimapWindow.close();
           System.out.printf("[%s] Closed%n", Minimap.class.getName());
           return true;
         case "toggle":
-          toggle();
-          System.out.printf("[%s] %s%n", Minimap.class.getName(), isOpen ? "Opened" : "Closed");
+          System.out.printf(
+              "[%s] %s%n", Minimap.class.getName(), minimapWindow.toggle() ? "Opened" : "Closed");
           return true;
         case "dump":
           minimapWindow.dump();
@@ -207,7 +189,8 @@ public class Minimap
       }
     }
 
-    System.out.printf("[%s] Valid commands are: open, close, toggle%n", Minimap.class.getName());
+    System.out.printf(
+        "[%s] Valid commands are: open, close, toggle, dump%n", Minimap.class.getName());
     return true;
   }
 }

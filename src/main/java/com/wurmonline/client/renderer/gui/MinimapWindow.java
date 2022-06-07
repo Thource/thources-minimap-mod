@@ -9,7 +9,7 @@ public class MinimapWindow extends WWindow {
 
   public MinimapWindow() {
     super("Minimap");
-    setTitle("Minimap!");
+    setTitle("Minimap");
     minimapView = new MinimapView("Minimap view", 512, 512);
     mainPanel = new WurmBorderPanel("Minimap panel");
     mainPanel.setComponent(minimapView, 3);
@@ -29,19 +29,11 @@ public class MinimapWindow extends WWindow {
 
     minimapView.setActualWidth(width - 6);
     minimapView.setActualHeight(height - 32);
-
-//    int viewSize = Math.max(width - 6, height - 32);
-//    minimapView.width = viewSize;
-//    minimapView.height = viewSize;
-//    mainPanel.layout();
   }
 
+  @Override
   public void closePressed() {
-    hud.toggleComponent(this);
-  }
-
-  public void toggle() {
-    hud.toggleComponent(this);
+    close();
   }
 
   public void addStructure(StructureData structureData) {
@@ -54,5 +46,17 @@ public class MinimapWindow extends WWindow {
 
   public void dump() {
     minimapView.dump();
+  }
+
+  public boolean toggle() {
+    return hud.toggleComponent(this);
+  }
+
+  public void open() {
+    hud.showComponent(this);
+  }
+
+  public void close() {
+    hud.hideComponent(this);
   }
 }
