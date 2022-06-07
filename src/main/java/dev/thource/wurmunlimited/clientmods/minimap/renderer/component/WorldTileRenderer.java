@@ -131,6 +131,6 @@ public class WorldTileRenderer extends TileRenderer implements TerrainChangeList
   @Override
   public void terrainUpdated(
       int startX, int startY, int endX, int endY, boolean heightsChanged, boolean bigUpdate) {
-    new Thread(() -> setDirty(startX - 1, startY - 1, endX + 1, endY + 1)).start();
+    new Thread(() -> setDirty(startX - 2, startY - 2, endX + 2, endY + 2)).start();
   }
 }

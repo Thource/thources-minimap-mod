@@ -109,12 +109,6 @@ public class Minimap
       throw new RuntimeException(e);
     }
 
-    urls = ((URLClassLoader) cl).getURLs();
-
-    for (URL url : urls) {
-      System.out.println(url.getFile());
-    }
-
     HookManager.getInstance()
         .registerHook(
             "com.wurmonline.client.renderer.gui.HeadsUpDisplay",
@@ -186,11 +180,15 @@ public class Minimap
           minimapWindow.dump();
           System.out.printf("[%s] Dumping%n", Minimap.class.getName());
           return true;
+        case "rerender":
+          minimapWindow.rerender();
+          System.out.printf("[%s] Rerendering%n", Minimap.class.getName());
+          return true;
       }
     }
 
     System.out.printf(
-        "[%s] Valid commands are: open, close, toggle, dump%n", Minimap.class.getName());
+        "[%s] Valid commands are: open, close, toggle, dump, rerender%n", Minimap.class.getName());
     return true;
   }
 }

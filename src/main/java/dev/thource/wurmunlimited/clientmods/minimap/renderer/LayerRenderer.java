@@ -82,7 +82,6 @@ public abstract class LayerRenderer {
       return;
     }
 
-    System.out.println("addStructure: " + structureData.getClass().getName());
     if (structureData instanceof BridgeData) {
       if (!bridges.containsKey(structureData.getId())) {
         RenderedBridge bridge = new RenderedBridge((BridgeData) structureData);
@@ -183,7 +182,6 @@ public abstract class LayerRenderer {
       return;
     }
 
-    System.out.println("removeStructure: " + structureData.getClass().getName());
     if (structureData instanceof BridgeData) {
       synchronized (bridges) {
         bridges.remove(structureData.getId());

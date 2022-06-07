@@ -59,4 +59,8 @@ public class MinimapWindow extends WWindow {
   public void close() {
     hud.hideComponent(this);
   }
+
+  public void rerender() {
+    minimapView.rerender();
+  }
 }

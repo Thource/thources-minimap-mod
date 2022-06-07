@@ -49,6 +49,6 @@ public class CaveTileRenderer extends TileRenderer implements CaveBufferChangeLi
 
   @Override
   public void caveChanged(int startX, int startY, int endX, int endY, boolean heightsChanged) {
-    new Thread(() -> setDirty(startX - 1, startY - 1, endX + 1, endY + 1)).start();
+    new Thread(() -> setDirty(startX - 2, startY - 2, endX + 2, endY + 2)).start();
   }
 }

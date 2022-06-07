@@ -280,6 +280,10 @@ public class MinimapView extends FlexComponent {
   }
 
   private Vector2f worldPosToPixelPos(float worldX, float worldY) {
+    return worldPosToPixelPos(worldX, worldY, zoomLevel);
+  }
+
+  private Vector2f worldPosToPixelPos(float worldX, float worldY, float zoomLevel) {
     PlayerObj player = world.getPlayer();
     PlayerPosition pos = player.getPos();
     float centerX = pos.getX();
@@ -300,13 +304,97 @@ public class MinimapView extends FlexComponent {
     caveLayerRenderer.removeStructure(structureData);
   }
 
+  private BufferedImage createDumpImage(LayerRenderer layerRenderer) {
+    PlayerObj player = world.getPlayer();
+    PlayerPosition pos = player.getPos();
+    int tileX = pos.getTileX();
+    int tileY = pos.getTileY();
+
+    BufferedImage dumpImage = new BufferedImage(imageSize, imageSize, BufferedImage.TYPE_INT_RGB);
+    Graphics2D graphics = dumpImage.createGraphics();
+    graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+    graphics.setRenderingHint(
+        RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+
+    BufferedImage layerImage = layerRenderer.getTileRenderer().getImage();
+    graphics.drawImage(layerImage, 0, 0, null);
+
+    MovementChecker movementChecker;
+    try {
+      movementChecker =
+          ReflectionUtil.getPrivateField(
+              world.getPlayer(), ReflectionUtil.getField(PlayerObj.class, "movementChecker"));
+    } catch (IllegalAccessException | NoSuchFieldException e) {
+      throw new RuntimeException(e);
+    }
+
+    for (RenderedFence fence : layerRenderer.getFences().values()) {
+      Vector2f fencePixelPos =
+          worldPosToPixelPos(
+              fence.getTileX() * 4f + (pos.getX() - tileX * 4),
+              fence.getTileY() * 4f + (pos.getY() - tileY * 4),
+              1);
+      graphics.drawImage(
+          fence.getImage(),
+          (int) fencePixelPos.x + imageSize / 2 - (int) Math.floor(RenderedFence.PADDING / 2f),
+          (int) fencePixelPos.y + imageSize / 2 - (int) Math.floor(RenderedFence.PADDING / 2f),
+          null);
+    }
+
+    for (RenderedBridge bridge : layerRenderer.getBridges().values()) {
+      boolean playerUnderBridge =
+          movementChecker.getBridgeId() != bridge.getId() && bridge.isBridgeTile(tileX, tileY);
+
+      if (playerUnderBridge) {
+        graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.6f));
+      }
+
+      Vector2f bridgePixelPos =
+          worldPosToPixelPos(
+              bridge.getTileX() * 4f + (pos.getX() - tileX * 4),
+              bridge.getTileY() * 4f + (pos.getY() - tileY * 4),
+              1);
+      graphics.drawImage(
+          bridge.getImage(),
+          (int) bridgePixelPos.x + imageSize / 2,
+          (int) bridgePixelPos.y + imageSize / 2,
+          null);
+
+      if (playerUnderBridge) {
+        graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
+      }
+    }
+
+    for (RenderedHouse house : layerRenderer.getHouses().values()) {
+      BufferedImage houseImage = house.getLevelImage(tileX, tileY, (int) (pos.getH() * 10));
+
+      if (houseImage != null) {
+        Vector2f housePixelPos =
+            worldPosToPixelPos(
+                house.getTileX() * 4f + (pos.getX() - tileX * 4),
+                house.getTileY() * 4f + (pos.getY() - tileY * 4),
+                1);
+        graphics.drawImage(
+            houseImage,
+            (int) housePixelPos.x + imageSize / 2 - (int) Math.floor(RenderedHouse.PADDING / 2f),
+            (int) housePixelPos.y + imageSize / 2 - (int) Math.floor(RenderedHouse.PADDING / 2f),
+            null);
+      }
+    }
+
+    graphics.dispose();
+    return dumpImage;
+  }
+
   public void dump() {
     new Thread(
             () -> {
               File outputFile =
-                  new File("tests/" + System.currentTimeMillis() + "-world-render.png");
+                  new File("minimap-dumps/" + System.currentTimeMillis() + "-world-render.png");
+              //noinspection ResultOfMethodCallIgnored
+              outputFile.mkdirs();
               try {
-                ImageIO.write(worldLayerRenderer.getTileRenderer().getImage(), "png", outputFile);
+                ImageIO.write(createDumpImage(worldLayerRenderer), "png", outputFile);
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }
@@ -316,13 +404,38 @@ public class MinimapView extends FlexComponent {
     new Thread(
             () -> {
               File outputFile =
-                  new File("tests/" + System.currentTimeMillis() + "-cave-render.png");
+                  new File("minimap-dumps/" + System.currentTimeMillis() + "-cave-render.png");
+              //noinspection ResultOfMethodCallIgnored
+              outputFile.mkdirs();
               try {
-                ImageIO.write(caveLayerRenderer.getTileRenderer().getImage(), "png", outputFile);
+                ImageIO.write(createDumpImage(caveLayerRenderer), "png", outputFile);
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }
             })
+        .start();
+  }
+
+  public void rerender() {
+    new Thread(
+            () ->
+                worldLayerRenderer
+                    .getTileRenderer()
+                    .setDirty(
+                        worldLayerRenderer.getTileRenderer().getCenterX() - 151,
+                        worldLayerRenderer.getTileRenderer().getCenterY() - 151,
+                        worldLayerRenderer.getTileRenderer().getCenterX() + 151,
+                        worldLayerRenderer.getTileRenderer().getCenterY() + 151))
+        .start();
+    new Thread(
+            () ->
+                caveLayerRenderer
+                    .getTileRenderer()
+                    .setDirty(
+                        caveLayerRenderer.getTileRenderer().getCenterX() - 151,
+                        caveLayerRenderer.getTileRenderer().getCenterY() - 151,
+                        caveLayerRenderer.getTileRenderer().getCenterX() + 151,
+                        caveLayerRenderer.getTileRenderer().getCenterY() + 151))
         .start();
   }
 }
