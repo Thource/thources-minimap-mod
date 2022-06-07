@@ -43,8 +43,6 @@ public class MinimapView extends FlexComponent {
   private final WorldLayerRenderer worldLayerRenderer;
   private final CaveLayerRenderer caveLayerRenderer;
   private final Method preprocessImage;
-  // TODO: move these somewhere configurable
-  boolean isNorthFacing = false;
   int imageSize = Settings.getTileSize() * 302;
   private ImageTexture texture;
 
@@ -111,7 +109,7 @@ public class MinimapView extends FlexComponent {
       throw new RuntimeException(e);
     }
 
-    if (!isNorthFacing) {
+    if (!Settings.isNorthFacing()) {
       framedGfx.rotate(-cameraRotX, actualWidth / 2f, actualHeight / 2f);
     }
     LayerRenderer layerRenderer =

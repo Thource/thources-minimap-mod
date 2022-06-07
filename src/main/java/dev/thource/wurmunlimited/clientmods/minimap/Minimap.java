@@ -30,6 +30,9 @@ public class Minimap
 
   @Override
   public void configure(Properties properties) {
+    Settings.setNorthFacing(
+        Boolean.parseBoolean(
+            properties.getProperty("northFacing", String.valueOf(Settings.isNorthFacing()))));
     Settings.setRenderHeight(
         Boolean.parseBoolean(
             properties.getProperty("renderHeight", String.valueOf(Settings.isRenderHeight()))));
